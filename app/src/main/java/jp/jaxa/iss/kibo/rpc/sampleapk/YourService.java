@@ -56,41 +56,7 @@ public class YourService extends KiboRpcService {
 
     @Override
     protected void runPlan2(){
-        // the mission starts
-        api.startMission();
-
-        // move to point 1
-        Point point = new Point(10.71f, -7.7f, 4.48f);
-        Quaternion quaternion = new Quaternion(0f, 0.707f, 0f, 0.707f);
-        api.moveTo(point, quaternion, false);
-
-        // report point1 arrival
-        api.reportPoint1Arrival();
-
-        // get a camera image
-        Mat image = api.getMatNavCam();
-
-        //target detection: TODO
-
-        // irradiate the laser
-        api.laserControl(true);
-
-        //debug cam
-        Mat debug_point_1 = api.getMatNavCam();
-        api.saveMatImage(debug_point_1, "point1");
-
-        // take target1 snapshots
-        api.takeTarget1Snapshot();
-
-        // turn the laser off
-        api.laserControl(false);
-
-        /* ******************************************** */
-        /* write your own code and repair the air leak! */
-        /* ******************************************** */
-
-        // send mission completion
-        api.reportMissionCompletion();
+        // write here your plan 2
     }
 
     @Override
