@@ -39,6 +39,7 @@ public class YourService extends KiboRpcService {
 
         //debug cam
         Mat debug_point_1 = api.getMatNavCam();
+
         api.saveMatImage(debug_point_1, "point1");
 
         // take target1 snapshots
@@ -50,7 +51,7 @@ public class YourService extends KiboRpcService {
         /* ******************************************** */
         /* write your own code and repair the air leak! */
         /* ******************************************** */
-
+        Log.d("start", "start of moving to point 2");
         //move to point 2
         Point point2 = new Point(11.2746f, -9.92284,  5.29881f);
         Point avoid = new Point(11, 4.2f, -8.5);
