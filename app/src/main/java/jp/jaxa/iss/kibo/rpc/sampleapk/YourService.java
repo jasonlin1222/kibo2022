@@ -1,6 +1,7 @@
 package jp.jaxa.iss.kibo.rpc.sampleapk;
 
 import android.graphics.Bitmap;
+import android.util.Log;
 
 import jp.jaxa.iss.kibo.rpc.api.KiboRpcService;
 
@@ -56,8 +57,11 @@ public class YourService extends KiboRpcService {
         Point avoid2 = new Point(11, -9.5f, -8.5f);
         Quaternion quaternion2 = new Quaternion(0f, 0f, -0.707f, 0.707f);
         api.moveTo(avoid, quaternion2, true);
+        Log.d("pos", "move to avoid");
         api.moveTo(avoid2, quaternion2, true);
+        Log.d("pos", "move to avoid2");
         api.moveTo(point2, quaternion2, true);
+        Log.d("pos", "move to point 2");
 
         // send mission completion
         api.reportMissionCompletion();
