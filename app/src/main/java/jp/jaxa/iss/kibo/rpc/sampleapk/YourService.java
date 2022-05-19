@@ -54,8 +54,8 @@ public class YourService extends KiboRpcService {
         Log.d("start", "start of moving to point 2");
         //move to point 2
         Point point2 = new Point(11.2746f, -9.92284,  5.29881f);
-        Point avoid = new Point(11.5, -8.2f, 4.3);
-        Point avoid2 = new Point(11.5, -9.5f, 4.3);
+        Point avoid = new Point(11.3f, -8.2f, 3.82f);
+        Point avoid2 = new Point(11.3f, -9.5f, 3.82f);
         Quaternion quaternion2 = new Quaternion(0f, 0f, -0.707f, 0.707f);
         api.moveTo(avoid, quaternion2, true);
         Log.d("pos", "move to avoid");
