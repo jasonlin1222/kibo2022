@@ -59,8 +59,8 @@ public class YourService extends KiboRpcService {
         Point point2 = new Point(11.2746f, -9.92284f,  5.29881f);
         //avoid koz for penalty
         //**change the quaternion later
-        Point avoid = new Point(11f, -8.2f, 4.7f);
-        Point avoid2 = new Point(11.2764f, -9.5f, 4.7f);
+        Point avoid = new Point(11.08f, -8.2f, 4.8f);
+        Point avoid2 = new Point(10.89f, -9.5f, 4.8f);
         Quaternion quaternion2 = new Quaternion(0f, 0f, -0.707f, 0.707f);
         moveTo2(avoid, quaternion2, true);
         Log.d("pos", "move to avoid");
@@ -69,10 +69,20 @@ public class YourService extends KiboRpcService {
         moveTo2(point2, quaternion2, true);
         Log.d("pos", "move to point 2");
 
-
         //save debug image for point 2
         Bitmap image2 = api.getBitmapNavCam();
         api.saveBitmapImage(image2, "point2");
+
+        //move to goal
+        Point goal = new Point(11.27460f, -7.89178f, 4.96538f);
+        moveTo2(avoid2, quaternion2, true);
+        Log.d("pos", "move to avoid2");
+        moveTo2(avoid, quaternion2, true);
+        Log.d("pos", "move to avoid");
+        moveTo2(goal, quaternion2, true);
+        Log.d("pos", "move to goal");
+
+
 
         // send mission completion
         api.reportMissionCompletion();
