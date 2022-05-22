@@ -23,7 +23,11 @@ public class YourService extends KiboRpcService {
         // move to point 1
         Point point = new Point(10.71f, -7.7f, 4.48f);
         Quaternion quaternion = new Quaternion(0f, 0.707f, 0f, 0.707f);
+<<<<<<< Updated upstream
         api.moveTo(point, quaternion, false);
+=======
+        moveTo2(point, quaternion, true);
+>>>>>>> Stashed changes
 
         // report point1 arrival
         api.reportPoint1Arrival();
@@ -37,8 +41,13 @@ public class YourService extends KiboRpcService {
         api.laserControl(true);
 
         //debug cam
+<<<<<<< Updated upstream
         Mat debug_point_1 = api.getMatNavCam();
         api.saveMatImage(debug_point_1, "point1");
+=======
+        Bitmap debug_point_1 = api.getBitmapNavCam();
+        api.saveBitmapImage(debug_point_1, "point1");
+>>>>>>> Stashed changes
 
         // take target1 snapshots
         api.takeTarget1Snapshot();
@@ -49,6 +58,29 @@ public class YourService extends KiboRpcService {
         /* ******************************************** */
         /* write your own code and repair the air leak! */
         /* ******************************************** */
+<<<<<<< Updated upstream
+=======
+        //record message to android studios log
+        Log.d("start", "start of moving to point 2");
+
+        //move to point 2
+        Point point2 = new Point(11.2746f, -9.92284f,  5.29881f);
+        //avoid koz for penalty
+        //**change the quaternion later
+        Point avoid = new Point(11f, -8.2f, 4.7f);
+        Point avoid2 = new Point(11.2764f, -9.5f, 4.7f);
+        Quaternion quaternion2 = new Quaternion(0f, 0f, -0.707f, 0.707f);
+        api.moveTo(avoid, quaternion2, true);
+        Log.d("pos", "move to avoid");
+        api.moveTo(avoid2, quaternion2, true);
+        Log.d("pos", "move to avoid2");
+        api.moveTo(point2, quaternion2, true);
+        Log.d("pos", "move to point 2");
+>>>>>>> Stashed changes
+
+        //save debug image for point 2
+        Bitmap image2 = api.getBitmapNavCam();
+        api.saveBitmapImage(image2, "point2");
 
         // send mission completion
         api.reportMissionCompletion();
@@ -65,6 +97,20 @@ public class YourService extends KiboRpcService {
     }
 
     // You can add your method
+    //move to that deals with randomness
+    private void moveTo2(Point point, Quaternion quaternion, boolean print){
+        final int LOOP_MAX = 5;
+        Result success;
+        success = api.moveTo(point, quaternion, print);
+        //loop count
+        int i = 0;
+        //detect if move on point succeeded, if not, try again. Wont try over 5 times
+        while(!success.hasSucceeded() && i < LOOP_MAX){
+            success = api.moveTo(point, quaternion, print);
+            i++;
+        }
+    }
+
     private void moveToWrapper(double pos_x, double pos_y, double pos_z,
                                double qua_x, double qua_y, double qua_z,
                                double qua_w){
