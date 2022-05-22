@@ -39,8 +39,8 @@ public class YourService extends KiboRpcService {
         api.laserControl(true);
 
         //debug cam
-        Bitmap debug_point_1 = api.getBitmapNavCam();
-        api.saveBitmapImage(debug_point_1, "point1");
+        Bitmap image1 = api.getBitmapNavCam();
+        api.saveBitmapImage(image1, "point1");
 
         // take target1 snapshots
         api.takeTarget1Snapshot();
