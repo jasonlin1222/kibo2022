@@ -24,7 +24,6 @@ public class YourService extends KiboRpcService {
         // move to point 1
         Point point = new Point(10.71f, -7.7f, 4.48f);
         Quaternion quaternion = new Quaternion(0f, 0.707f, 0f, 0.707f);
-        moveTo2(point, quaternion, false);
         moveTo2(point, quaternion, true);
 
         // report point1 arrival
@@ -42,6 +41,7 @@ public class YourService extends KiboRpcService {
         Bitmap image1 = api.getBitmapNavCam();
         api.saveBitmapImage(image1, "point1");
 
+
         // take target1 snapshots
         api.takeTarget1Snapshot();
 
@@ -51,6 +51,7 @@ public class YourService extends KiboRpcService {
         /* ******************************************** */
         /* write your own code and repair the air leak! */
         /* ******************************************** */
+      
         //record message to android studios log
         Log.d("start", "start of moving to point 2");
 
@@ -67,6 +68,7 @@ public class YourService extends KiboRpcService {
         Log.d("pos", "move to avoid2");
         moveTo2(point2, quaternion2, true);
         Log.d("pos", "move to point 2");
+
 
         //save debug image for point 2
         Bitmap image2 = api.getBitmapNavCam();
