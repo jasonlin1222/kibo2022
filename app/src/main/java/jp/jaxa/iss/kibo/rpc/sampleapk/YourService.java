@@ -69,10 +69,20 @@ public class YourService extends KiboRpcService {
         moveTo2(point2, quaternion2, true);
         Log.d("pos", "move to point 2");
 
-
         //save debug image for point 2
         Bitmap image2 = api.getBitmapNavCam();
         api.saveBitmapImage(image2, "point2");
+
+        //move to goal
+        Point goal = new Point(11.27460, -7.89178, 4.96538);
+        moveTo2(avoid2, quaternion2, true);
+        Log.d("pos", "move to avoid2");
+        moveTo2(avoid, quaternion2, true);
+        Log.d("pos", "move to avoid");
+        moveTo2(goal, quaternion2, true);
+        Log.d("pos", "move to goal");
+
+
 
         // send mission completion
         api.reportMissionCompletion();
