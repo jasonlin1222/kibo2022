@@ -74,7 +74,7 @@ public class YourService extends KiboRpcService {
         api.saveBitmapImage(image2, "point2");
 
         //move to goal
-        Point goal = new Point(11.27460, -7.89178, 4.96538);
+        Point goal = new Point(11.27460f, -7.89178f, 4.96538f);
         moveTo2(avoid2, quaternion2, true);
         Log.d("pos", "move to avoid2");
         moveTo2(avoid, quaternion2, true);
