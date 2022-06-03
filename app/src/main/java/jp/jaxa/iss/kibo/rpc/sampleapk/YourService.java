@@ -9,7 +9,12 @@ import gov.nasa.arc.astrobee.Result;
 import gov.nasa.arc.astrobee.types.Point;
 import gov.nasa.arc.astrobee.types.Quaternion;
 
+import org.opencv.aruco.Aruco;
+import org.opencv.aruco.DetectorParameters;
 import org.opencv.core.Mat;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Class meant to handle commands from the Ground Data System and execute them in Astrobee
@@ -38,8 +43,23 @@ public class YourService extends KiboRpcService {
         api.laserControl(true);
 
         //debug cam
-        Bitmap image1 = api.getBitmapNavCam();
-        api.saveBitmapImage(image1, "point1");
+        Mat image1 = api.getMatNavCam();
+        api.saveMatImage(image1, "point1");
+
+        //detect artags
+        List<Mat> corners = new ArrayList<>();
+        Mat ids = new Mat();
+        Aruco.detectMarkers(
+                api.getMatNavCam(),
+                Aruco.getPredefinedDictionary(Aruco.DICT_5X5_250),
+                corners,
+                ids);
+
+        Log.d("aruco", "detect finish");
+
+        //draw markers on image1
+        Aruco.drawDetectedMarkers(image1, corners, ids);
+        api.saveMatImage(image1, "draw markers");
 
 
         // take target1 snapshots
