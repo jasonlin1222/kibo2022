@@ -46,9 +46,11 @@ public class YourService extends KiboRpcService {
         Mat image1 = api.getMatNavCam();
         api.saveMatImage(image1, "point1");
 
-        //detect artags
+        //save corners and ar-tag ids
         List<Mat> corners = new ArrayList<>();
         Mat ids = new Mat();
+
+        //detect artags
         Aruco.detectMarkers(
                 api.getMatNavCam(),
                 Aruco.getPredefinedDictionary(Aruco.DICT_5X5_250),
@@ -67,10 +69,6 @@ public class YourService extends KiboRpcService {
 
         // turn the laser off
         api.laserControl(false);
-
-        /* ******************************************** */
-        /* write your own code and repair the air leak! */
-        /* ******************************************** */
 
         //record message to android studios log
         Log.d("start", "start of moving to point 2");
