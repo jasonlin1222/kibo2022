@@ -99,10 +99,6 @@ public class YourService extends KiboRpcService {
         Imgproc.circle(image1, target1, 10, blue, -1);
         api.saveMatImage(image1, "Draw taget");
 
-        List<Mat> rvecs = new ArrayList<>();
-        List<Mat> tvecs = new ArrayList<>();
-        Aruco.estimatePoseSingleMarkers(image1, 0.05, revcs, revcs, rvecs, tvecs );
-
         // take target1 snapshots
         api.takeTarget1Snapshot();
 
