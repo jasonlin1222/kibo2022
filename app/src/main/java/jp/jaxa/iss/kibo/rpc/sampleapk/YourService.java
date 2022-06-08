@@ -14,12 +14,16 @@ import org.opencv.android.OpenCVLoader;
 import org.opencv.aruco.Aruco;
 import org.opencv.aruco.DetectorParameters;
 import org.opencv.core.Mat;
+import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.imgproc.Imgproc;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
+import static com.google.common.primitives.Ints.max;
+import static com.google.common.primitives.Ints.min;
 
 /**
  * Class meant to handle commands from the Ground Data System and execute them in Astrobee
@@ -33,9 +37,9 @@ public class YourService extends KiboRpcService {
 
         //initialize opencv
         if(OpenCVLoader.initDebug()){
-            Log.d("init", "Successfully loaded OpenCV");
+            Log.i("init", "Successfully loaded OpenCV");
         }else{
-            Log.d("init","Fail to load");
+            Log.i("init","Fail to load");
         }
 
         // move to point 1
@@ -45,9 +49,6 @@ public class YourService extends KiboRpcService {
 
         // report point1 arrival
         api.reportPoint1Arrival();
-
-        // get a camera image
-        Mat image = api.getMatNavCam();
 
         //target detection: TODO
 
@@ -69,7 +70,7 @@ public class YourService extends KiboRpcService {
                 corners,
                 ids);
 
-        Log.d("aruco", "detect finish");
+        Log.i("aruco", "detect finish");
 
         //draw markers on image1
         Aruco.drawDetectedMarkers(image1, corners, ids);
@@ -87,7 +88,7 @@ public class YourService extends KiboRpcService {
             double[] pRD = mat.get(0, 3);
             targetPixelX += pLU[0] + pLD[0] + pRD[0] + pRU[0];
             targetPixelY += pLU[1] + pLD[1] + pRD[1] + pRU[1];
-            Log.d("ARtag",  Arrays.toString(ids.get(i, 0)) + "Data: {"+ Arrays.toString(pLU) + ", " + Arrays.toString(pLD) + ", " + Arrays.toString(pRU) + ", " + Arrays.toString(pRD) + "}");
+            Log.i("ARtag",  Arrays.toString(ids.get(i, 0)) + "Data: {"+ Arrays.toString(pLU) + ", " + Arrays.toString(pLD) + ", " + Arrays.toString(pRU) + ", " + Arrays.toString(pRD) + "}");
         }
 
         targetPixelX /= 16;
@@ -106,7 +107,7 @@ public class YourService extends KiboRpcService {
         api.laserControl(false);
 
         //record message to android studios log
-        Log.d("pos", "start of moving to point 2");
+        Log.i("pos", "start of moving to point 2");
 
         //move to point 2
         Point point2 = new Point(11.2746f, -9.92284f,  5.29881f);
@@ -118,24 +119,81 @@ public class YourService extends KiboRpcService {
 
         //move to
         moveTo2(avoid, quaternion2, true);
-        Log.d("pos", "move to avoid");
+        Log.i("pos", "move to avoid");
         moveTo2(avoid2, quaternion2, true);
-        Log.d("pos", "move to avoid2");
+        Log.i("pos", "move to avoid2");
         moveTo2(point2, quaternion2, true);
-        Log.d("pos", "move to point 2");
+        Log.i("pos", "move to point 2");
 
         //save debug image for point 2
-        Bitmap image2 = api.getBitmapNavCam();
-        api.saveBitmapImage(image2, "point2");
+        Mat image2 = api.getMatNavCam();
+        api.saveMatImage(image2, "point2");
+
+        // reset corners and ids
+        corners = new ArrayList<>();
+        ids = new Mat();
+
+        //detect artags
+        Aruco.detectMarkers(
+                image2,
+                Aruco.getPredefinedDictionary(Aruco.DICT_5X5_250),
+                corners,
+                ids);
+
+        Log.i("aruco", "detect 2 finish");
+
+        //draw markers on image2
+        Aruco.drawDetectedMarkers(image2, corners, ids);
+        api.saveMatImage(image2, "draw markers 2");
+
+        if (ids.size().height < 4) {
+            Log.i("reportPoint2", "Less ARtags than expected. Skipping Point 2.");
+        } else {
+            int tY = -1, bY = 99999, lX= -1, rX = 99999;
+            Log.i("reportPoint2", "Scanning...");
+            // https://i.imgur.com/3KOJfSr.jpeg
+            for(int i = 0; i < ids.size().height; i++) {
+                Mat mat = corners.get(i);
+                double[] currentIdDA = ids.get(i, 0);
+                int currentId = (int) currentIdDA[0];
+                Log.i("reportPoint2", "Scanning id: " + currentId);
+
+                double[] pLU = mat.get(0, 0);
+                double[] pLD = mat.get(0, 1);
+                double[] pRU = mat.get(0, 2);
+                double[] pRD = mat.get(0, 3);
+
+                if (currentId == 11) {
+                    tY = max(tY, (int)pLU[1]);
+                    rX = min(rX, (int)pLU[0], (int)pLD[0]);
+                } else if (currentId == 12) {
+                    tY = max(tY, (int)pRU[1]);
+                    lX = max(lX, (int)pRU[0], (int)pRD[0]);
+                } else if (currentId == 13) {
+                    bY = max(bY, (int)pRD[1]);
+                    lX = max(lX, (int)pRU[0], (int)pRD[0]);
+                } else if (currentId == 14) {
+                    bY = min(bY, (int)pLD[1]);
+                    lX = max(lX, (int)pRU[0], (int)pRD[0]);
+                }
+            }
+
+            Log.i("reportPoint2","ok: lX: " + lX + "; rX: " + rX + "; tY: " + tY + "; bY: " + bY);
+
+            Rect rect = new Rect(lX, tY, rX-lX, bY-tY);
+            Mat cardArea = image2.submat(rect);
+            Log.i("reportPoint2", "processed submat");
+            api.saveMatImage(cardArea, "point2_cardArea");
+        }
 
         //move to goal
         Point goal = new Point(11.27460f, -7.89178f, 4.96538f);
         moveTo2(avoid2, quaternion2, true);
-        Log.d("pos", "move to avoid2");
+        Log.i("pos", "move to avoid2");
         moveTo2(avoid, quaternion2, true);
-        Log.d("pos", "move to avoid");
+        Log.i("pos", "move to avoid");
         moveTo2(goal, quaternion2, true);
-        Log.d("pos", "move to goal");
+        Log.i("pos", "move to goal");
 
 
 
