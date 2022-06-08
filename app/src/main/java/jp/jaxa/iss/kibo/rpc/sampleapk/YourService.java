@@ -46,7 +46,7 @@ public class YourService extends KiboRpcService {
         Point point = new Point(10.71f, -7.7f, 4.48f);
         Quaternion quaternion = new Quaternion(0f, 0.707f, 0f, 0.707f);
         moveTo2(point, quaternion, true);
-        
+
         // report point1 arrival
         api.reportPoint1Arrival();
 
@@ -63,6 +63,7 @@ public class YourService extends KiboRpcService {
         Point target = new Point(0,0,0);
         int LOOP_MAX = 46;
         boolean success = false;
+        int totalMoveX = 0, totalMoveY = 0;
         while (--LOOP_MAX >= 0) {
             // TODO: see log and change this faulty code (probably due to quaternion, not sure)
             float x = 0, y = 0;
@@ -70,28 +71,30 @@ public class YourService extends KiboRpcService {
                 Log.i("reportMovement", "WE LOST IT");
                 break;
             }
-            if (target1Loc.first > 500 && target1Loc.first < 680 &&
+            if (target1Loc.first > 700 && target1Loc.first < 780 &&
                     target1Loc.second > 450 && target1Loc.second < 510) {
                 success = true;
                 break;
             }
-            if (target1Loc.first > 640) {
-                x += 0.05;
-            } else if (target1Loc.first < 640) {
-                x -= 0.05;
+            if (target1Loc.first > 700) {
+                x += 0.04;
+            } else if (target1Loc.first < 780) {
+                x -= 0.04;
             }
-            if (target1Loc.second > 480) {
-                y -= 0.05;
-            } else if (target1Loc.second < 480) {
-                y += 0.05;
+            if (target1Loc.second > 450) {
+                y += 0.04;
+            } else if (target1Loc.second < 510) {
+                y -= 0.04;
             }
+            totalMoveX += x; totalMoveY += y;
+            Log.i("reportMovement", "ROUND " + (46 - LOOP_MAX));
             Log.i("reportMovement", "target: (" + target1Loc.first + "," + target1Loc.second + "), moving (" + x + "," + y + ")");
             Point thisTarget = new Point(x, y, 0);
             relativeMoveTo2(thisTarget, quaternion, true);
             target1Loc = getTarget1Loc(api.getMatNavCam());
             api.saveMatImage(api.getMatNavCam(), "afterMovePoint1 (" + (46 - LOOP_MAX) + ")");
         }
-
+        Log.i("reportMovement", "TOTAL_MOVE: (" + totalMoveX + "," + totalMoveY + ")");
         if (success) {
             // irradiate the laser
             api.laserControl(true);
