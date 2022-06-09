@@ -159,9 +159,14 @@ public class YourService extends KiboRpcService {
                 Log.i("reportPoint2", "Scanning id: " + currentId);
 
                 double[] pLU = mat.get(0, 0);
-                double[] pLD = mat.get(0, 1);
-                double[] pRU = mat.get(0, 2);
-                double[] pRD = mat.get(0, 3);
+                double[] pRU = mat.get(0, 1);
+                double[] pRD = mat.get(0, 2);
+                double[] pLD = mat.get(0, 3);
+
+                Log.i("reportPoint2", "pLU: (" + pLU[0] + "," + pLU[1] + ")");
+                Log.i("reportPoint2", "pRU: (" + pRU[0] + "," + pRU[1] + ")");
+                Log.i("reportPoint2", "pLD: (" + pLD[0] + "," + pLD[1] + ")");
+                Log.i("reportPoint2", "pRD: (" + pRD[0] + "," + pRD[1] + ")");
 
                 if (currentId == 11) {
                     tY = max(tY, (int)pLU[1]);
@@ -170,20 +175,24 @@ public class YourService extends KiboRpcService {
                     tY = max(tY, (int)pRU[1]);
                     lX = max(lX, (int)pRU[0], (int)pRD[0]);
                 } else if (currentId == 13) {
-                    bY = max(bY, (int)pRD[1]);
+                    bY = min(bY, (int)pRD[1]);
                     lX = max(lX, (int)pRU[0], (int)pRD[0]);
                 } else if (currentId == 14) {
                     bY = min(bY, (int)pLD[1]);
-                    lX = max(lX, (int)pRU[0], (int)pRD[0]);
+                    rX = min(rX, (int)pLU[0], (int)pLD[0]);
                 }
             }
 
             Log.i("reportPoint2","ok: lX: " + lX + "; rX: " + rX + "; tY: " + tY + "; bY: " + bY);
 
             Rect rect = new Rect(lX, tY, rX-lX, bY-tY);
+            image2.get(lX, tY);
             Mat cardArea = image2.submat(rect);
             Log.i("reportPoint2", "processed submat");
             api.saveMatImage(cardArea, "point2_cardArea");
+
+            // cardArea is the card's area, without the ARtags
+            // TODO: implement actual target detection
         }
 
         //move to goal
