@@ -167,7 +167,7 @@ public class YourService extends KiboRpcService {
 
         //detect artags
         Aruco.detectMarkers(
-                api.getMatNavCam(),
+                image1,
                 Aruco.getPredefinedDictionary(Aruco.DICT_5X5_250),
                 corners,
                 ids);
