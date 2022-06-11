@@ -266,8 +266,9 @@ public class YourService extends KiboRpcService {
             }
         }
 
-        // sometimes the target is higher than the highest artag
+        // sometimes the target is higher or lower than the highest artag
         tY -= 30;
+        bY += 15;
 
         Log.i("reportPoint2","ok: lX: " + lX + "; rX: " + rX + "; tY: " + tY + "; bY: " + bY);
 
