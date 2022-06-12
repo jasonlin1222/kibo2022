@@ -33,7 +33,7 @@ import static com.google.common.primitives.Ints.min;
 public class YourService extends KiboRpcService {
     private Pair<Integer, Integer> nullPII = new Pair<>(-1,-1);
     private Scalar silver = new Scalar(192,192,192);
-
+    private Scalar black = new Scalar(255, 255, 255);
     @Override
     protected void runPlan1(){
         // the mission starts
@@ -41,9 +41,9 @@ public class YourService extends KiboRpcService {
 
         //initialize opencv
         if(OpenCVLoader.initDebug()){
-            Log.i("init", "Successfully loaded OpenCV");
+            Log.d("init", "Successfully loaded OpenCV");
         }else{
-            Log.i("init","Fail to load");
+            Log.d("init","Fail to load");
         }
 
         // move to point 1
@@ -59,8 +59,10 @@ public class YourService extends KiboRpcService {
 
         Pair<Integer, Integer> target1Loc = getTarget1Loc(image1);
 
+        Log.d("target1", "" + target1Loc.first + " , " + target1Loc.second);
+
         if (target1Loc != nullPII) {
-            if (moveToPointOnImage(target1Loc.first, target1Loc.second)) {
+            if (moveToPoint1OnImage(target1Loc.first, target1Loc.second, quaternion)) {
                 // irradiate the laser
                 api.laserControl(true);
                 // take target1 snapshots
@@ -70,7 +72,7 @@ public class YourService extends KiboRpcService {
             }
         }
 
-        Log.i("pos", "start of moving to point 2");
+        Log.d("pos", "start of moving to point 2");
 
         //move to point 2
         Point point2 = new Point(11.2746f, -9.92284f,  5.29881f);
@@ -81,11 +83,11 @@ public class YourService extends KiboRpcService {
 
         //move to
         moveTo2(avoid, quaternion2, true);
-        Log.i("pos", "move to avoid");
+        Log.d("pos", "move to avoid");
         moveTo2(avoid2, quaternion2, true);
-        Log.i("pos", "move to avoid2");
+        Log.d("pos", "move to avoid2");
         moveTo2(point2, quaternion2, true);
-        Log.i("pos", "move to point 2");
+        Log.d("pos", "move to point2");
 
         //save debug image for point 2
         Mat image2 = api.getMatNavCam();
@@ -94,7 +96,7 @@ public class YourService extends KiboRpcService {
         Pair<Integer, Integer> target2Loc = getTarget2Loc(image2);
 
         if (target2Loc != nullPII) {
-            if (moveToPointOnImage(target2Loc.first, target2Loc.second)) {
+            if (true) {
                 api.laserControl(true);
                 api.takeTarget2Snapshot();
                 api.laserControl(false);
@@ -104,11 +106,11 @@ public class YourService extends KiboRpcService {
         //move to goal
         Point goal = new Point(11.27460f, -7.89178f, 4.96538f);
         moveTo2(avoid2, quaternion2, true);
-        Log.i("pos", "move to avoid2");
+        Log.d("pos", "move to avoid2");
         moveTo2(avoid, quaternion2, true);
-        Log.i("pos", "move to avoid");
+        Log.d("pos", "move to avoid");
         moveTo2(goal, quaternion2, true);
-        Log.i("pos", "move to goal");
+        Log.d("pos", "move to goal");
 
         // send mission completion
         api.reportMissionCompletion();
@@ -172,7 +174,7 @@ public class YourService extends KiboRpcService {
                 corners,
                 ids);
 
-        Log.i("aruco", "detect finish");
+        Log.d("aruco", "detect finish");
 
         //draw markers on image1
         Aruco.drawDetectedMarkers(image1, corners, ids);
@@ -180,7 +182,7 @@ public class YourService extends KiboRpcService {
 
         if (ids.size().height < 4) {
             // not all artags are detected, this algorithm will fail
-            Log.i("reportPoint2", "Less ARtags than expected. Skipping Point 1.");
+            Log.d("reportPoint2", "Less ARtags than expected. Skipping Point 1.");
             return nullPII;
         }
 
@@ -196,7 +198,7 @@ public class YourService extends KiboRpcService {
             double[] pLD = mat.get(0, 3);
             targetPixelX += pLU[0] + pLD[0] + pRD[0] + pRU[0];
             targetPixelY += pLU[1] + pLD[1] + pRD[1] + pRU[1];
-            Log.i("ARtag",  Arrays.toString(ids.get(i, 0)) + "Data: {"+ Arrays.toString(pLU) + ", " + Arrays.toString(pLD) + ", " + Arrays.toString(pRU) + ", " + Arrays.toString(pRD) + "}");
+            Log.d("ARtag",  Arrays.toString(ids.get(i, 0)) + "Data: {"+ Arrays.toString(pLU) + ", " + Arrays.toString(pLD) + ", " + Arrays.toString(pRU) + ", " + Arrays.toString(pRD) + "}");
         }
 
         targetPixelX /= 16;
@@ -222,7 +224,7 @@ public class YourService extends KiboRpcService {
                 corners,
                 ids);
 
-        Log.i("aruco", "detect 2 finish");
+        Log.d("aruco", "detect 2 finish");
 
         //draw markers on image2
         Aruco.drawDetectedMarkers(image2, corners, ids);
@@ -230,26 +232,26 @@ public class YourService extends KiboRpcService {
 
         if (ids.size().height < 4) {
             // did not detect all ARtags
-            Log.i("reportPoint2", "Less ARtags than expected. Skipping Point 2.");
+            Log.d("reportPoint2", "Less ARtags than expected. Skipping Point 2.");
             return nullPII;
         }
         int tY = -1, bY = 99999, lX= -1, rX = 99999;
-        Log.i("reportPoint2", "Scanning...");
+        Log.d("reportPoint2", "Scanning...");
         for(int i = 0; i < ids.size().height; i++) {
             Mat mat = corners.get(i);
             double[] currentIdDA = ids.get(i, 0);
             int currentId = (int) currentIdDA[0];
-            Log.i("reportPoint2", "Scanning id: " + currentId);
+            Log.d("reportPoint2", "Scanning id: " + currentId);
 
             double[] pLU = mat.get(0, 0);
             double[] pRU = mat.get(0, 1);
             double[] pRD = mat.get(0, 2);
             double[] pLD = mat.get(0, 3);
 
-            Log.i("reportPoint2", "pLU: (" + pLU[0] + "," + pLU[1] + ")");
-            Log.i("reportPoint2", "pRU: (" + pRU[0] + "," + pRU[1] + ")");
-            Log.i("reportPoint2", "pLD: (" + pLD[0] + "," + pLD[1] + ")");
-            Log.i("reportPoint2", "pRD: (" + pRD[0] + "," + pRD[1] + ")");
+            Log.d("reportPoint2", "pLU: (" + pLU[0] + "," + pLU[1] + ")");
+            Log.d("reportPoint2", "pRU: (" + pRU[0] + "," + pRU[1] + ")");
+            Log.d("reportPoint2", "pLD: (" + pLD[0] + "," + pLD[1] + ")");
+            Log.d("reportPoint2", "pRD: (" + pRD[0] + "," + pRD[1] + ")");
 
             if (currentId == 11) {
                 tY = max(tY, (int)pLU[1]);
@@ -270,12 +272,12 @@ public class YourService extends KiboRpcService {
         tY -= 30;
         bY += 15;
 
-        Log.i("reportPoint2","ok: lX: " + lX + "; rX: " + rX + "; tY: " + tY + "; bY: " + bY);
+        Log.d("reportPoint2","ok: lX: " + lX + "; rX: " + rX + "; tY: " + tY + "; bY: " + bY);
 
         Rect rect = new Rect(lX, tY, rX-lX, bY-tY);
         // cardArea is the card's area, without the ARtags
         Mat cardArea = image2.submat(rect);
-        Log.i("reportPoint2", "processed submat");
+        Log.d("reportPoint2", "processed submat");
         api.saveMatImage(cardArea, "point2_cardArea.png");
 
         // The camera takes 256-bit color pictures
@@ -305,8 +307,24 @@ public class YourService extends KiboRpcService {
         return ans;
     }
 
-    private boolean moveToPointOnImage(int targetX, int targetY) {
+    private boolean moveToPoint1OnImage(int targetX, int targetY, Quaternion quaternion) {
         // TODO: write this function, return true if movement is successful, false if not
+        double dx = (targetX - 669.0125);
+        double dy = (targetY - 423.2125);
+
+        Log.d("differences", "Target dX : " + dx + " dY : " + dy);
+
+        Point reletave = new Point(10.71f + dx*0.4 + 0.09, -7.7f + dy*0.4 - 0.2479, 4.48f);
+
+        moveTo2(reletave, quaternion, true);
+
+        Mat img = api.getMatNavCam();
+        org.opencv.core.Point center = new org.opencv.core.Point(669.0125,423.2125);
+        Imgproc.circle(img, center, 10, black, -1);
+        api.saveMatImage(img, "after move.png");
+        //get differences from robot
+
+
         return true;
     }
 }
