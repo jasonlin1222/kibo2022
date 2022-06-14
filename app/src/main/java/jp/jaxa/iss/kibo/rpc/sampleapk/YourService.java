@@ -31,6 +31,7 @@ import static org.opencv.core.CvType.CV_32F;
 public class YourService extends KiboRpcService {
     private Pair<Integer, Integer> nullPII = new Pair<>(-1,-1);
     private Scalar silver = new Scalar(192,192,192);
+    double mX = 0, mY = 0, mZ = 0;
 
     @Override
     protected void runPlan1(){
@@ -60,6 +61,7 @@ public class YourService extends KiboRpcService {
         double[] D_val = intrinsics[1];
 
         // convert double[][] to two mats
+        // cannot move K and D to global variable because it has to be after OpenCV has init
         Mat K = new Mat(3, 3, CV_32F), D = new Mat(5, 1, CV_32F);
         int cnt = 0;
         for (int i = 0; i < 3; i++) {
@@ -76,14 +78,15 @@ public class YourService extends KiboRpcService {
         Mat image1 = api.getMatNavCam();
         api.saveMatImage(image1, "point1.png");
 
+        image1 = calibrateNavFisheyeCam(image1, K, D);
+        api.saveMatImage(image1, "point1_calibrated.png");
+
         Pair<Integer, Integer> target1Loc = getTarget1Loc(image1);
 
-        // testing fisheye calibration
-        Mat calib = calibrateNavFisheyeCam(image1, K, D);
-        api.saveMatImage(calib, "calibrated_point1.png");
+        target1Loc = calibrateMovementAtTarget1(target1Loc.first, target1Loc.second, quaternion, K, D);
 
         if (target1Loc != nullPII) {
-            if (moveToPointOnImage(target1Loc.first, target1Loc.second, quaternion)) {
+            if (moveToPointOnImageForTarget1(target1Loc.first, target1Loc.second, quaternion)) {
                 // irradiate the laser
                 api.laserControl(true);
                 // take target1 snapshots
@@ -114,10 +117,15 @@ public class YourService extends KiboRpcService {
         Mat image2 = api.getMatNavCam();
         api.saveMatImage(image2, "point2.png");
 
+        image2 = calibrateNavFisheyeCam(image2, K, D);
+        api.saveMatImage(image2, "point2_calibrated.png");
+
         Pair<Integer, Integer> target2Loc = getTarget2Loc(image2);
 
+        target2Loc = calibrateMovementAtTarget2(target2Loc.first, quaternion2, K, D);
+
         if (target2Loc != nullPII) {
-            if (moveToPointOnImage(target2Loc.first, target2Loc.second, quaternion2)) {
+            if (moveToPointOnImageForTarget2(target2Loc.first, target2Loc.second, quaternion2)) {
                 api.laserControl(true);
                 api.takeTarget2Snapshot();
                 api.laserControl(false);
@@ -162,10 +170,73 @@ public class YourService extends KiboRpcService {
         }
     }
 
+    private void relativeMoveTo2(Point point, Quaternion quaternion, boolean print) {
+        final int LOOP_MAX = 5;
+        Result success;
+        success = api.relativeMoveTo(point, quaternion, print);
+        //loop count
+        int i = 0;
+        //detect if move on point succeeded, if not, try again. Wont try over 5 times
+        while(!success.hasSucceeded() && i < LOOP_MAX){
+            success = api.relativeMoveTo(point, quaternion, print);
+            i++;
+        }
+    }
+
+    private Mat getNavCamAndCalibrate(Mat K, Mat D) {
+        return calibrateNavFisheyeCam(api.getMatNavCam(), K, D);
+    }
+
     private Mat calibrateNavFisheyeCam(Mat img, Mat K, Mat D) {
         Mat undistorted = new Mat();
         Imgproc.undistort(img, undistorted, K, D);
         return undistorted;
+    }
+
+
+
+    private Pair<Integer, Integer> calibrateMovementAtTarget1(int currX, int currY, Quaternion quaternion, Mat K, Mat D) {
+
+        // (2) calibrate movement (find mY from change in X-axis of image after movement, mZ from change in Y-axis)
+        // toMove = pxloc * v, where toMove is the value of movement, pxloc = beforeMoveTargetLoc - afterMoveTargetLoc, v is mY or mZ
+        // i.e. v = toMove/pxloc
+        // this returns the final position for further movement
+        // please only use this function at point1
+
+        Point moveForX = new Point(0, 0.2, 0);
+        relativeMoveTo2(moveForX, quaternion, true);
+        Mat curr = getNavCamAndCalibrate(K, D);
+        Pair<Integer, Integer> afterMoveForX = getTarget1Loc(curr);
+        mX = 0.2 / (currX - afterMoveForX.first);
+
+        Point moveForY = new Point(0.2, 0, 0);
+        relativeMoveTo2(moveForY, quaternion, true);
+        curr = getNavCamAndCalibrate(K, D);
+        Pair<Integer, Integer> afterMoveForY = getTarget1Loc(curr);
+        mY = 0.2 / (afterMoveForX.second - afterMoveForY.second);
+
+        Log.i("reportCalibrateMovement", "mX: " + mX + "; mY: " + mY);
+
+        return afterMoveForY;
+    }
+
+    private Pair<Integer, Integer> calibrateMovementAtTarget2(int currX, Quaternion quaternion, Mat K, Mat D) {
+        Point moveForX = new Point(0.2, 0, 0);
+        relativeMoveTo2(moveForX, quaternion, true);
+        Mat curr = getNavCamAndCalibrate(K, D);
+        Pair<Integer, Integer> afterMoveForX = getTarget1Loc(curr);
+        mX = 0.2 / (currX - afterMoveForX.first);
+
+        Point moveForY = new Point(0, 0, 0.2);
+        relativeMoveTo2(moveForY, quaternion, true);
+        curr = getNavCamAndCalibrate(K, D);
+        Pair<Integer, Integer> afterMoveForY = getTarget1Loc(curr);
+        mZ = 0.2 / (afterMoveForX.second - afterMoveForY.second);
+
+        Log.i("reportCalibrateMovement", "mX: " + mX + "; mZ: " + mZ);
+
+        return afterMoveForY;
+
     }
 
     private Pair<Integer, Integer> getTarget1Loc(Mat image1) {
@@ -312,8 +383,23 @@ public class YourService extends KiboRpcService {
         return ans;
     }
 
-    private boolean moveToPointOnImage(int targetX, int targetY, Quaternion quaternion) {
-        // TODO: write this function, return true if movement is successful, false if not
+    private boolean moveToPointOnImageForTarget1(int targetX, int targetY, Quaternion quaternion) {
+        double dx = targetX - 640;
+        double dy = targetY - 480;
+        Log.i("reportMoveToPoint", "dx: " + dx + "; dy: " + dy);
+        Point moveTo = new Point(dy * mX + 0.0285, dx * mY + 0.0994, 0);
+        Log.i("reportMoveToPoint", "" + moveTo);
+        relativeMoveTo2(moveTo, quaternion, true);
+        return true;
+    }
+
+    private boolean moveToPointOnImageForTarget2(int targetX, int targetY, Quaternion quaternion) {
+        double dx = targetX - 640;
+        double dy = targetY - 480;
+        Log.i("reportMoveToPoint", "dx: " + dx + "; dy: " + dy);
+        Point moveTo = new Point(dx * mX - 0.0994, 0, dy * mZ - 0.0285);
+        Log.i("reportMoveToPoint", "" + moveTo);
+        relativeMoveTo2(moveTo, quaternion, true);
         return true;
     }
 }
