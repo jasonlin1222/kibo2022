@@ -1,7 +1,5 @@
 package jp.jaxa.iss.kibo.rpc.sampleapk;
 
-import android.graphics.Bitmap;
-import android.graphics.Color;
 import android.util.Log;
 import android.util.Pair;
 
@@ -13,7 +11,6 @@ import gov.nasa.arc.astrobee.types.Quaternion;
 
 import org.opencv.android.OpenCVLoader;
 import org.opencv.aruco.Aruco;
-import org.opencv.aruco.DetectorParameters;
 import org.opencv.core.Mat;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
@@ -25,6 +22,7 @@ import java.util.List;
 
 import static com.google.common.primitives.Ints.max;
 import static com.google.common.primitives.Ints.min;
+import static org.opencv.core.CvType.CV_32F;
 
 /**
  * Class meant to handle commands from the Ground Data System and execute them in Astrobee
@@ -46,6 +44,7 @@ public class YourService extends KiboRpcService {
             Log.i("init","Fail to load");
         }
 
+
         // move to point 1
         Point point = new Point(10.71f, -7.7f, 4.48f);
         Quaternion quaternion = new Quaternion(0f, 0.707f, 0f, 0.707f);
@@ -54,13 +53,37 @@ public class YourService extends KiboRpcService {
         // report point1 arrival
         api.reportPoint1Arrival();
 
+        // get camera intrinsics for fisheye calibration
+        double[][] intrinsics = api.getNavCamIntrinsics();
+        Log.i("getIntrinsics", "" + intrinsics);
+        double[] K_val = intrinsics[0];
+        double[] D_val = intrinsics[1];
+
+        // convert double[][] to two mats
+        Mat K = new Mat(3, 3, CV_32F), D = new Mat(5, 1, CV_32F);
+        int cnt = 0;
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                K.put(i, j, K_val[cnt++]);
+            }
+        }
+        for (int i = 0; i < 5; i++) {
+            D.put(i, 0, D_val[i]);
+        }
+        Log.i("getIntrinsics", K.dump());
+        Log.i("getIntrinsics", D.dump());
+
         Mat image1 = api.getMatNavCam();
         api.saveMatImage(image1, "point1.png");
 
         Pair<Integer, Integer> target1Loc = getTarget1Loc(image1);
 
+        // testing fisheye calibration
+        Mat calib = calibrateNavFisheyeCam(image1, K, D);
+        api.saveMatImage(calib, "calibrated_point1.png");
+
         if (target1Loc != nullPII) {
-            if (moveToPointOnImage(target1Loc.first, target1Loc.second)) {
+            if (moveToPointOnImage(target1Loc.first, target1Loc.second, quaternion)) {
                 // irradiate the laser
                 api.laserControl(true);
                 // take target1 snapshots
@@ -94,7 +117,7 @@ public class YourService extends KiboRpcService {
         Pair<Integer, Integer> target2Loc = getTarget2Loc(image2);
 
         if (target2Loc != nullPII) {
-            if (moveToPointOnImage(target2Loc.first, target2Loc.second)) {
+            if (moveToPointOnImage(target2Loc.first, target2Loc.second, quaternion2)) {
                 api.laserControl(true);
                 api.takeTarget2Snapshot();
                 api.laserControl(false);
@@ -139,26 +162,10 @@ public class YourService extends KiboRpcService {
         }
     }
 
-    private void moveToWrapper(double pos_x, double pos_y, double pos_z,
-                               double qua_x, double qua_y, double qua_z,
-                               double qua_w){
-
-        final Point point = new Point(pos_x, pos_y, pos_z);
-        final Quaternion quaternion = new Quaternion((float)qua_x, (float)qua_y,
-                (float)qua_z, (float)qua_w);
-
-        moveTo2(point, quaternion, true);
-    }
-
-    private void relativeMoveToWrapper(double pos_x, double pos_y, double pos_z,
-                                       double qua_x, double qua_y, double qua_z,
-                                       double qua_w) {
-
-        final Point point = new Point(pos_x, pos_y, pos_z);
-        final Quaternion quaternion = new Quaternion((float) qua_x, (float) qua_y,
-                (float) qua_z, (float) qua_w);
-
-        api.relativeMoveTo(point, quaternion, true);
+    private Mat calibrateNavFisheyeCam(Mat img, Mat K, Mat D) {
+        Mat undistorted = new Mat();
+        Imgproc.undistort(img, undistorted, K, D);
+        return undistorted;
     }
 
     private Pair<Integer, Integer> getTarget1Loc(Mat image1) {
@@ -305,7 +312,7 @@ public class YourService extends KiboRpcService {
         return ans;
     }
 
-    private boolean moveToPointOnImage(int targetX, int targetY) {
+    private boolean moveToPointOnImage(int targetX, int targetY, Quaternion quaternion) {
         // TODO: write this function, return true if movement is successful, false if not
         return true;
     }
