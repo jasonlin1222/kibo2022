@@ -31,6 +31,7 @@ import static org.opencv.core.CvType.CV_32F;
 public class YourService extends KiboRpcService {
     private Pair<Integer, Integer> nullPII = new Pair<>(-1,-1);
     private Scalar silver = new Scalar(192,192,192);
+    private double mX, mY, mZ;
 
     @Override
     protected void runPlan1(){
@@ -76,19 +77,21 @@ public class YourService extends KiboRpcService {
         Mat image1 = api.getMatNavCam();
         api.saveMatImage(image1, "point1.png");
 
+        image1 = calibrateNavFisheyeCam(image1, K, D);
+        api.saveMatImage(image1, "calibrated_point1.png");
+
         Pair<Integer, Integer> target1Loc = getTarget1Loc(image1);
 
-        // testing fisheye calibration
-        Mat calib = calibrateNavFisheyeCam(image1, K, D);
-        api.saveMatImage(calib, "calibrated_point1.png");
+        target1Loc = calibrateScaleAtT1(target1Loc.first, quaternion, K, D);
 
         if (target1Loc != nullPII) {
-            if (moveToPointOnImage(target1Loc.first, target1Loc.second, quaternion)) {
+            if (moveToPointOnImageForT1(target1Loc.first, target1Loc.second, quaternion, K, D)) {
                 // irradiate the laser
                 api.laserControl(true);
                 // take target1 snapshots
                 api.takeTarget1Snapshot();
                 // turn the laser off
+                api.saveMatImage(getNavCamAndCalibrateFisheye(K, D), "laser_t1.png");
                 api.laserControl(false);
             }
         }
@@ -100,13 +103,14 @@ public class YourService extends KiboRpcService {
         //avoid koz for penalty
         Point avoid = new Point(11f, -8.2f, 4.75f);
         Point avoid2 = new Point(11.1f, -9.5f, 4.75f);
-        Quaternion quaternion2 = new Quaternion(0f, 0f, -0.707f, 0.707f);
+        Quaternion quaternion2 = new Quaternion(0.5f, -0.5f, -0.5f, 0.5f);
 
         //move to
         moveTo2(avoid, quaternion2, true);
         Log.i("pos", "move to avoid");
         moveTo2(avoid2, quaternion2, true);
         Log.i("pos", "move to avoid2");
+
         moveTo2(point2, quaternion2, true);
         Log.i("pos", "move to point 2");
 
@@ -114,23 +118,30 @@ public class YourService extends KiboRpcService {
         Mat image2 = api.getMatNavCam();
         api.saveMatImage(image2, "point2.png");
 
+        image2 = calibrateNavFisheyeCam(image2, K, D);
+        api.saveMatImage(image2, "calibrated_point2.png");
+
         Pair<Integer, Integer> target2Loc = getTarget2Loc(image2);
 
+        target2Loc = calibrateScaleAtT2(target2Loc.first, quaternion2, K, D);
+
         if (target2Loc != nullPII) {
-            if (moveToPointOnImage(target2Loc.first, target2Loc.second, quaternion2)) {
+            if (moveToPointOnImageForT2(target2Loc.first, target2Loc.second, quaternion2, K, D)) {
                 api.laserControl(true);
                 api.takeTarget2Snapshot();
+                api.saveMatImage(getNavCamAndCalibrateFisheye(K, D), "laser_t2.png");
                 api.laserControl(false);
             }
         }
 
         //move to goal
+        Quaternion missionCompleteQuaternion = new Quaternion(0f, 0f, -0.707f, 0.707f);
         Point goal = new Point(11.27460f, -7.89178f, 4.96538f);
         moveTo2(avoid2, quaternion2, true);
         Log.i("pos", "move to avoid2");
-        moveTo2(avoid, quaternion2, true);
+        moveTo2(avoid, missionCompleteQuaternion, true);
         Log.i("pos", "move to avoid");
-        moveTo2(goal, quaternion2, true);
+        moveTo2(goal, missionCompleteQuaternion, true);
         Log.i("pos", "move to goal");
 
         // send mission completion
@@ -160,6 +171,36 @@ public class YourService extends KiboRpcService {
             success = api.moveTo(point, quaternion, print);
             i++;
         }
+    }
+
+    private void relativeMoveTo2(Point relativePoint, Quaternion quaternion, boolean print){
+        final int LOOP_MAX = 5;
+        Result success;
+        Point currPos = api.getRobotKinematics().getPosition();
+        Point point = new Point(currPos.getX() + relativePoint.getX(), currPos.getY() + relativePoint.getY(), currPos.getZ() + relativePoint.getZ());
+        if (point.getZ() >= 5.57) {
+            Log.i("relativeMoveTo2", "Keep in zone violation. Setting z to 5.56");
+            point = new Point(point.getX(), point.getY(), 5.56);
+        }
+        success = api.moveTo(point, quaternion, print);
+        //loop count
+        int i = 0;
+        //detect if move on point succeeded, if not, try again. Wont try over 5 times
+        while(!success.hasSucceeded() && i < LOOP_MAX){
+            success = api.moveTo(point, quaternion, print);
+            i++;
+        }
+    }
+
+    private Mat getNavCamAndCalibrateFisheyeAndDrawCenter(Mat K, Mat D) {
+        Mat img = getNavCamAndCalibrateFisheye(K, D);
+        org.opencv.core.Point center = new org.opencv.core.Point(640, 480);
+        Imgproc.circle(img, center, 10, silver, -1);
+        return img;
+    }
+
+    private Mat getNavCamAndCalibrateFisheye(Mat K, Mat D) {
+        return calibrateNavFisheyeCam(api.getMatNavCam(), K, D);
     }
 
     private Mat calibrateNavFisheyeCam(Mat img, Mat K, Mat D) {
@@ -232,8 +273,9 @@ public class YourService extends KiboRpcService {
         Log.i("aruco", "detect 2 finish");
 
         //draw markers on image2
-        Aruco.drawDetectedMarkers(image2, corners, ids);
-        api.saveMatImage(image2, "draw markers 2.png");
+        Mat draw = new Mat(image2.nativeObj);
+        Aruco.drawDetectedMarkers(draw, corners, ids);
+        api.saveMatImage(draw, "draw markers 2.png");
 
         if (ids.size().height < 4) {
             // did not detect all ARtags
@@ -248,34 +290,53 @@ public class YourService extends KiboRpcService {
             int currentId = (int) currentIdDA[0];
             Log.i("reportPoint2", "Scanning id: " + currentId);
 
-            double[] pLU = mat.get(0, 0);
-            double[] pRU = mat.get(0, 1);
-            double[] pRD = mat.get(0, 2);
-            double[] pLD = mat.get(0, 3);
+//            double[] pLU = mat.get(0, 0);
+//            double[] pRU = mat.get(0, 1);
+//            double[] pRD = mat.get(0, 2);
+//            double[] pLD = mat.get(0, 3);
+
+            double[] pLD = mat.get(0, 0);
+            double[] pLU = mat.get(0, 1);
+            double[] pRU = mat.get(0, 2);
+            double[] pRD = mat.get(0, 3);
 
             Log.i("reportPoint2", "pLU: (" + pLU[0] + "," + pLU[1] + ")");
             Log.i("reportPoint2", "pRU: (" + pRU[0] + "," + pRU[1] + ")");
             Log.i("reportPoint2", "pLD: (" + pLD[0] + "," + pLD[1] + ")");
             Log.i("reportPoint2", "pRD: (" + pRD[0] + "," + pRD[1] + ")");
 
+//            if (currentId == 11) {
+//                tY = max(tY, (int)pLU[1]);
+//                rX = min(rX, (int)pLU[0], (int)pLD[0]);
+//            } else if (currentId == 12) {
+//                tY = max(tY, (int)pRU[1]);
+//                lX = max(lX, (int)pRU[0], (int)pRD[0]);
+//            } else if (currentId == 13) {
+//                bY = min(bY, (int)pRD[1]);
+//                lX = max(lX, (int)pRU[0], (int)pRD[0]);
+//            } else if (currentId == 14) {
+//                bY = min(bY, (int)pLD[1]);
+//                rX = min(rX, (int)pLU[0], (int)pLD[0]);
+//            }
             if (currentId == 11) {
-                tY = max(tY, (int)pLU[1]);
-                rX = min(rX, (int)pLU[0], (int)pLD[0]);
+                lX = max(lX, (int)pLD[0]);
+                tY = max(tY, (int)pLD[1], (int)pRD[1]);
             } else if (currentId == 12) {
-                tY = max(tY, (int)pRU[1]);
-                lX = max(lX, (int)pRU[0], (int)pRD[0]);
+                lX = max(lX, (int)pLU[0]);
+                bY = min(bY, (int)pLU[1], (int)pRU[1]);
             } else if (currentId == 13) {
-                bY = min(bY, (int)pRD[1]);
-                lX = max(lX, (int)pRU[0], (int)pRD[0]);
+                rX = min(rX, (int)pRU[0]);
+                bY = min(bY, (int)pLU[1], (int)pRU[1]);
             } else if (currentId == 14) {
-                bY = min(bY, (int)pLD[1]);
-                rX = min(rX, (int)pLU[0], (int)pLD[0]);
+                rX = min(rX, (int)pRD[0]);
+                tY = max(tY, (int)pLD[1], (int)pRD[1]);
             }
+
         }
 
         // sometimes the target is higher or lower than the highest artag
-        tY -= 30;
-        bY += 15;
+        lX -= 30;
+        rX += 15;
 
         Log.i("reportPoint2","ok: lX: " + lX + "; rX: " + rX + "; tY: " + tY + "; bY: " + bY);
 
@@ -312,8 +373,78 @@ public class YourService extends KiboRpcService {
         return ans;
     }
 
-    private boolean moveToPointOnImage(int targetX, int targetY, Quaternion quaternion) {
-        // TODO: write this function, return true if movement is successful, false if not
+    private Pair<Integer, Integer> calibrateScaleAtT1(int beforeMoveX, Quaternion quaternion, Mat K, Mat D) {
+
+        api.saveMatImage(getNavCamAndCalibrateFisheye(K, D), "t1_0beforeMove.png");
+
+        Point relativePoint = new Point(0, 0.2, 0);
+        relativeMoveTo2(relativePoint, quaternion, true);
+        Pair<Integer, Integer> afterMoveForX = getTarget1Loc(getNavCamAndCalibrateFisheye(K, D));
+        mY = 0.2 / (beforeMoveX - afterMoveForX.first);
+
+        api.saveMatImage(getNavCamAndCalibrateFisheye(K, D), "t1_1afterMoveForX.png");
+
+        relativePoint = new Point(0.2, 0, 0);
+        relativeMoveTo2(relativePoint, quaternion, true);
+        Pair<Integer, Integer> afterMoveForY = getTarget1Loc(getNavCamAndCalibrateFisheye(K, D));
+        mX = 0.2 / (afterMoveForX.second - afterMoveForY.second);
+
+        api.saveMatImage(getNavCamAndCalibrateFisheye(K, D), "t1_2afterMoveForY.png");
+
+        Log.i("afterCalibrateAtT1", "mY: " + mY + "; mX: " + mX);
+
+        return afterMoveForY;
+    }
+
+    private Pair<Integer, Integer> calibrateScaleAtT2(int beforeMoveX, Quaternion quaternion, Mat K, Mat D) {
+        // TODO: I don't know if calibrate is wrong or moveTo is wrong, but T2 behaves very weirdly
+
+        api.saveMatImage(getNavCamAndCalibrateFisheye(K, D), "t2_0beforeMove.png");
+        Point relativePoint = new Point(0, 0, -0.2);
+        relativeMoveTo2(relativePoint, quaternion, true);
+        Pair<Integer, Integer> afterMoveForX = getTarget2Loc(getNavCamAndCalibrateFisheye(K, D));
+        mZ = (-0.2) / (beforeMoveX - afterMoveForX.first);
+
+        api.saveMatImage(getNavCamAndCalibrateFisheye(K, D), "t2_1afterMoveForX.png");
+
+        relativePoint = new Point(-0.2, 0, 0);
+        relativeMoveTo2(relativePoint, quaternion, true);
+        Pair<Integer, Integer> afterMoveForY = getTarget2Loc(getNavCamAndCalibrateFisheye(K, D));
+        mX = (-0.2) / (afterMoveForX.second - afterMoveForY.second);
+
+        api.saveMatImage(getNavCamAndCalibrateFisheye(K, D), "t2_2afterMoveForY.png");
+
+        Log.i("afterCalibrateAtT2", "mX: " + mX + "; mZ: " + mZ);
+
+        return afterMoveForY;
+    }
+
+    private boolean moveToPointOnImageForT1(int targetX, int targetY, Quaternion quaternion, Mat K, Mat D) {
+        double tX = targetX - 640, tY = targetY - 480;
+
+        Point relativePoint = new Point(tY * mX + 0.0285, tX * mY - 0.0994, 0);
+        relativeMoveTo2(relativePoint, quaternion, true);
+
+        Mat img = getNavCamAndCalibrateFisheye(K, D);
+        Pair<Integer, Integer> t1 = getTarget1Loc(img);
+        Log.i("t1_afterMoveLoc", "x: " + t1.first + "; y: " + t1.second);
+        api.saveMatImage(img, "t1_afteroffset.png");
+
+        return true;
+    }
+
+    private boolean moveToPointOnImageForT2(int targetX, int targetY, Quaternion quaternion, Mat K, Mat D) {
+        double tX = targetX - 640, tY = targetY - 480;
+
+        // TODO: I don't know if calibrate is wrong or moveTo is wrong, but T2 behaves very weirdly
+        Point relativePoint = new Point(tY * mX - 0.0285, 0, tX * mZ - 0.0994);
+        relativeMoveTo2(relativePoint, quaternion, true);
+
+        Mat img = getNavCamAndCalibrateFisheye(K, D);
+        Pair<Integer, Integer> t2 = getTarget2Loc(img);
+        Log.i("t2_afterMoveLoc", "x: " + t2.first + "; y: " + t2.second);
+        api.saveMatImage(img, "t2_afteroffset.png");
+
         return true;
     }
 }
