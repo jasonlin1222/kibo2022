@@ -1,6 +1,5 @@
 package jp.jaxa.iss.kibo.rpc.sampleapk;
 
-import android.os.SystemClock;
 import android.util.Log;
 import android.util.Pair;
 
@@ -10,7 +9,6 @@ import gov.nasa.arc.astrobee.Result;
 import gov.nasa.arc.astrobee.types.Point;
 import gov.nasa.arc.astrobee.types.Quaternion;
 
-import org.opencv.android.OpenCVLoader;
 import org.opencv.aruco.Aruco;
 import org.opencv.core.Mat;
 import org.opencv.core.Rect;
@@ -20,7 +18,6 @@ import org.opencv.imgproc.Imgproc;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 import static com.google.common.primitives.Ints.max;
 import static com.google.common.primitives.Ints.min;
@@ -31,27 +28,27 @@ import static org.opencv.core.CvType.CV_32F;
  */
 
 public class YourService extends KiboRpcService {
-    private Pair<Integer, Integer> nullPII = new Pair<>(-1,-1);
-    private Scalar silver = new Scalar(192,192,192);
+    private final String LOG_PREFIX = "WillPower_";
+    private final Pair<Integer, Integer> nullPII = new Pair<>(-1,-1);
+    private final Scalar silver = new Scalar(192,192,192);
+    private final double T1_BASIC_SLEEP = 5;
+    private final double T1_CALIB_SLEEP = 5;
+    private final double T2_BASIC_SLEEP = 5;
+    private final double T2_CALIB_SLEEP = 5;
+
     private double mX, mY, mZ;
-    private int image_id = 0;
 
     @Override
     protected void runPlan1(){
         // the mission starts
         api.startMission();
 
-        //initialize opencv
-        if(OpenCVLoader.initDebug()){
-            Log.i("init", "Successfully loaded OpenCV");
-        }else{
-            Log.i("init","Fail to load");
-        }
-
+        // initialize opencv can be removed because the inherited class already has a function
+        // ``onGuestScienceStart()`` that initializes it
 
         // get camera intrinsics for fisheye calibration
         double[][] intrinsics = api.getNavCamIntrinsics();
-        Log.i("getIntrinsics", "" + intrinsics);
+        log("getIntrinsics", "" + intrinsics);
         double[] K_val = intrinsics[0];
         double[] D_val = intrinsics[1];
 
@@ -66,8 +63,8 @@ public class YourService extends KiboRpcService {
         for (int i = 0; i < 5; i++) {
             D.put(i, 0, D_val[i]);
         }
-        Log.i("getIntrinsics", K.dump());
-        Log.i("getIntrinsics", D.dump());
+        log("getIntrinsics", K.dump());
+        log("getIntrinsics", D.dump());
 
 
         // move to point 1
@@ -78,16 +75,16 @@ public class YourService extends KiboRpcService {
         // report point1 arrival
         api.reportPoint1Arrival();
 
-        sleep(3);
-        Mat image1 = api.getMatNavCam();
-        api.saveMatImage(image1, "point1.png");
+        Point closerPoint1 = new Point(10.71f, -7.7f, 4.33f);
+        moveTo2(closerPoint1, quaternion, true);
 
-        image1 = calibrateNavFisheyeCam(image1, K, D);
-        api.saveMatImage(image1, "calibrated_point1.png");
+        sleep(T1_BASIC_SLEEP);
+        Mat image1 = getNavCamAndCalibrateFisheye(K, D);
+//        api.saveMatImage(image1, "calibrated_point1.png");
 
         Pair<Integer, Integer> target1Loc = getTarget1Loc(image1);
 
-        target1Loc = calibrateScaleAtT1(target1Loc.first, quaternion, K, D);
+        target1Loc = calibrateScaleAtT1(target1Loc, quaternion, K, D);
 
         if (target1Loc != nullPII) {
             if (moveToPointOnImageForT1(target1Loc.first, target1Loc.second, quaternion, K, D)) {
@@ -101,10 +98,11 @@ public class YourService extends KiboRpcService {
             }
         }
 
-        Log.i("pos", "start of moving to point 2");
+        log("pos", "start of moving to point 2");
 
         //move to point 2
         Point point2 = new Point(11.2746f, -9.92284f,  5.29881f);
+        Point closerPoint2 = new Point(11.2746f, -10.05f,  5.29881f);
         //avoid koz for penalty
         Point avoid = new Point(11f, -8.2f, 4.75f);
         Point avoid2 = new Point(11.1f, -9.5f, 4.75f);
@@ -112,48 +110,51 @@ public class YourService extends KiboRpcService {
 
         //move to
         moveTo2(avoid, quaternion2, true);
-        Log.i("pos", "move to avoid");
+        log("pos", "move to avoid");
         moveTo2(avoid2, quaternion2, true);
-        Log.i("pos", "move to avoid2");
+        log("pos", "move to avoid2");
 
         moveTo2(point2, quaternion2, true);
-        Log.i("pos", "move to point 2");
+        log("pos", "move to point 2");
+
+        moveTo2(closerPoint2, quaternion2, true);
+        log("pos", "move to closer point 2");
 
         //save debug image for point 2
-        sleep(5);
-        Mat image2 = api.getMatNavCam();
-        api.saveMatImage(image2, "point2.png");
-
-        image2 = calibrateNavFisheyeCam(image2, K, D);
-        api.saveMatImage(image2, "calibrated_point2.png");
+        sleep(T2_BASIC_SLEEP);
+        Mat image2 = getNavCamAndCalibrateFisheye(K, D);
+//        api.saveMatImage(image2, "calibrated_point2.png");
 
         Pair<Integer, Integer> target2Loc = getTarget2Loc(image2);
 
-        target2Loc = calibrateScaleAtT2(target2Loc.first, quaternion2, K, D);
+        target2Loc = calibrateScaleAtT2(target2Loc, quaternion2, K, D);
 
         if (target2Loc != nullPII) {
             if (moveToPointOnImageForT2(target2Loc.first, target2Loc.second, quaternion2, K, D)) {
-                Log.i("testDebugSomethingStuff", "In IF");
+                log("testDebugSomethingStuff", "In IF");
                 api.laserControl(true);
-                Log.i("testDebugSomethingStuff", "Laser on");
+                log("testDebugSomethingStuff", "Laser on");
                 api.takeTarget2Snapshot();
-                Log.i("testDebugSomethingStuff", "Snapshots over");
+                log("testDebugSomethingStuff", "Snapshots over");
                 api.saveMatImage(getNavCamAndCalibrateFisheye(K, D), "laser_t2.png");
-                Log.i("testDebugSomethingStuff", "Saved laser_t2.png");
+                log("testDebugSomethingStuff", "Saved laser_t2.png");
                 api.laserControl(false);
-                Log.i("testDebugSomethingStuff", "Laser off. T2 over.");
+                log("testDebugSomethingStuff", "Laser off. T2 over.");
             }
         }
+
+//        moveTo2(point2, quaternion2, true);
+//        log("pos", "move back to regular point 2");
 
         //move to goal
         Quaternion missionCompleteQuaternion = new Quaternion(0f, 0f, -0.707f, 0.707f);
         Point goal = new Point(11.27460f, -7.89178f, 4.96538f);
         moveTo2(avoid2, quaternion2, true);
-        Log.i("pos", "move to avoid2");
+        log("pos", "move to avoid2");
         moveTo2(avoid, missionCompleteQuaternion, true);
-        Log.i("pos", "move to avoid");
+        log("pos", "move to avoid");
         moveTo2(goal, missionCompleteQuaternion, true);
-        Log.i("pos", "move to goal");
+        log("pos", "move to goal");
 
         // send mission completion
         api.reportMissionCompletion();
@@ -189,10 +190,6 @@ public class YourService extends KiboRpcService {
         Result success;
         Point currPos = api.getRobotKinematics().getPosition();
         Point point = new Point(currPos.getX() + relativePoint.getX(), currPos.getY() + relativePoint.getY(), currPos.getZ() + relativePoint.getZ());
-        if (point.getZ() >= 5.57) {
-            Log.i("relativeMoveTo2", "Keep in zone violation. Setting z to 5.56");
-            point = new Point(point.getX(), point.getY(), 5.56);
-        }
         success = api.moveTo(point, quaternion, print);
         //loop count
         int i = 0;
@@ -203,10 +200,24 @@ public class YourService extends KiboRpcService {
         }
     }
 
-    private void sleep(int seconds) {
-        // TODO: See if SIGNAL 11 (segmentation fault) is caused by this
-        SystemClock.sleep(seconds * 1000);
+    private void log(String id, String msg) {
+        Log.i(LOG_PREFIX + id, msg);
     }
+
+    private void sleep(double seconds) {
+        log("sleepFunction", "Start sleeping for " + seconds + " seconds");
+        int delay = (int)(seconds * 1000); // number of milliseconds to sleep
+
+        long start = System.currentTimeMillis();
+        while (start >= System.currentTimeMillis() - delay);
+
+        log("sleepFunction", "Done sleeping for " + (System.currentTimeMillis() - start));
+    }
+
+//    private boolean api.saveMatImage(Mat img, String fileName) {
+////        api.api.saveMatImage(img, fileName);
+//        return true;
+//    }
 
     private Mat getNavCamAndCalibrateFisheyeAndDrawCenter(Mat K, Mat D) {
         Mat img = getNavCamAndCalibrateFisheye(K, D);
@@ -236,15 +247,15 @@ public class YourService extends KiboRpcService {
                 corners,
                 ids);
 
-        Log.i("aruco", "detect finish");
+        log("aruco", "detect finish");
 
         //draw markers on image1
-        Aruco.drawDetectedMarkers(image1, corners, ids);
-        api.saveMatImage(image1, "draw markers 1_" + (image_id++) + ".png");
+//        Aruco.drawDetectedMarkers(image1, corners, ids);
+//        api.saveMatImage(image1, "draw markers 1_" + (image_id++) + ".png");
 
         if (ids.size().height < 4) {
             // not all artags are detected, this algorithm will fail
-            Log.i("reportPoint2", "Less ARtags than expected. Skipping Point 1.");
+            log("reportPoint2", "Less ARtags than expected. Skipping Point 1.");
             return nullPII;
         }
 
@@ -260,16 +271,16 @@ public class YourService extends KiboRpcService {
             double[] pLD = mat.get(0, 3);
             targetPixelX += pLU[0] + pLD[0] + pRD[0] + pRU[0];
             targetPixelY += pLU[1] + pLD[1] + pRD[1] + pRU[1];
-            Log.i("ARtag",  Arrays.toString(ids.get(i, 0)) + "Data: {"+ Arrays.toString(pLU) + ", " + Arrays.toString(pLD) + ", " + Arrays.toString(pRU) + ", " + Arrays.toString(pRD) + "}");
+            log("ARtag",  Arrays.toString(ids.get(i, 0)) + "Data: {"+ Arrays.toString(pLU) + ", " + Arrays.toString(pLD) + ", " + Arrays.toString(pRU) + ", " + Arrays.toString(pRD) + "}");
         }
 
         targetPixelX /= 16;
         targetPixelY /= 16;
 
         //draw a circle at target
-        org.opencv.core.Point target1 = new org.opencv.core.Point(targetPixelX, targetPixelY);
-        Imgproc.circle(image1, target1, 10, silver, -1);
-        api.saveMatImage(image1, "draw target 1_"+ (image_id++) +".png");
+//        org.opencv.core.Point target1 = new org.opencv.core.Point(targetPixelX, targetPixelY);
+//        Imgproc.circle(image1, target1, 10, silver, -1);
+//        api.saveMatImage(image1, "draw target 1_"+ (image_id++) +".png");
 
         Pair<Integer, Integer> ans = new Pair<>((int)targetPixelX, (int)targetPixelY);
         return ans;
@@ -286,54 +297,36 @@ public class YourService extends KiboRpcService {
                 corners,
                 ids);
 
-        Log.i("aruco", "detect 2 finish");
+        log("aruco", "detect 2 finish");
 
         //draw markers on image2
-        Mat draw = new Mat(image2.nativeObj);
-        Aruco.drawDetectedMarkers(draw, corners, ids);
-        api.saveMatImage(draw, "draw markers 2_" + (image_id++) + ".png");
+//        Mat draw = new Mat(image2.nativeObj);
+//        Aruco.drawDetectedMarkers(draw, corners, ids);
+//        api.saveMatImage(draw, "draw markers 2_" + (image_id++) + ".png");
 
         if (ids.size().height < 4) {
             // did not detect all ARtags
-            Log.i("reportPoint2", "Less ARtags than expected. Skipping Point 2.");
+            log("reportPoint2", "Less ARtags than expected. Skipping Point 2.");
             return nullPII;
         }
         int tY = -1, bY = 99999, lX= -1, rX = 99999;
-        Log.i("reportPoint2", "Scanning...");
+        log("reportPoint2", "Scanning...");
         for(int i = 0; i < ids.size().height; i++) {
             Mat mat = corners.get(i);
             double[] currentIdDA = ids.get(i, 0);
             int currentId = (int) currentIdDA[0];
-            Log.i("reportPoint2", "Scanning id: " + currentId);
-
-//            double[] pLU = mat.get(0, 0);
-//            double[] pRU = mat.get(0, 1);
-//            double[] pRD = mat.get(0, 2);
-//            double[] pLD = mat.get(0, 3);
+            log("reportPoint2", "Scanning id: " + currentId);
 
             double[] pLD = mat.get(0, 0);
             double[] pLU = mat.get(0, 1);
             double[] pRU = mat.get(0, 2);
             double[] pRD = mat.get(0, 3);
 
-            Log.i("reportPoint2", "pLU: (" + pLU[0] + "," + pLU[1] + ")");
-            Log.i("reportPoint2", "pRU: (" + pRU[0] + "," + pRU[1] + ")");
-            Log.i("reportPoint2", "pLD: (" + pLD[0] + "," + pLD[1] + ")");
-            Log.i("reportPoint2", "pRD: (" + pRD[0] + "," + pRD[1] + ")");
+            log("reportPoint2", "pLU: (" + pLU[0] + "," + pLU[1] + ")");
+            log("reportPoint2", "pRU: (" + pRU[0] + "," + pRU[1] + ")");
+            log("reportPoint2", "pLD: (" + pLD[0] + "," + pLD[1] + ")");
+            log("reportPoint2", "pRD: (" + pRD[0] + "," + pRD[1] + ")");
 
-//            if (currentId == 11) {
-//                tY = max(tY, (int)pLU[1]);
-//                rX = min(rX, (int)pLU[0], (int)pLD[0]);
-//            } else if (currentId == 12) {
-//                tY = max(tY, (int)pRU[1]);
-//                lX = max(lX, (int)pRU[0], (int)pRD[0]);
-//            } else if (currentId == 13) {
-//                bY = min(bY, (int)pRD[1]);
-//                lX = max(lX, (int)pRU[0], (int)pRD[0]);
-//            } else if (currentId == 14) {
-//                bY = min(bY, (int)pLD[1]);
-//                rX = min(rX, (int)pLU[0], (int)pLD[0]);
-//            }
             if (currentId == 11) {
                 lX = max(lX, (int)pLD[0]);
                 tY = max(tY, (int)pLD[1], (int)pRD[1]);
@@ -354,13 +347,13 @@ public class YourService extends KiboRpcService {
         lX -= 30;
         rX += 15;
 
-        Log.i("reportPoint2","ok: lX: " + lX + "; rX: " + rX + "; tY: " + tY + "; bY: " + bY);
+        log("reportPoint2","ok: lX: " + lX + "; rX: " + rX + "; tY: " + tY + "; bY: " + bY);
 
         Rect rect = new Rect(lX, tY, rX-lX, bY-tY);
         // cardArea is the card's area, without the ARtags
         Mat cardArea = image2.submat(rect);
-        Log.i("reportPoint2", "processed submat");
-        api.saveMatImage(cardArea, "point2_cardArea_" + (image_id++) + ".png");
+//        log("reportPoint2", "processed submat");
+//        api.saveMatImage(cardArea, "point2_cardArea_" + (image_id++) + ".png");
 
         // The camera takes 256-bit color pictures
         // each pixel is an integer between 0 and 255
@@ -381,59 +374,48 @@ public class YourService extends KiboRpcService {
         targetX += lX; targetY += tY;
 
         // draw a circle at target
-        org.opencv.core.Point target2 = new org.opencv.core.Point(targetX, targetY);
-        Imgproc.circle(image2, target2, 10, silver, -1);
-        api.saveMatImage(image2, "draw target 2_" + (image_id++) + ".png");
+//        org.opencv.core.Point target2 = new org.opencv.core.Point(targetX, targetY);
+//        Imgproc.circle(image2, target2, 10, silver, -1);
+//        api.saveMatImage(image2, "draw target 2_" + (image_id++) + ".png");
 
         Pair<Integer, Integer> ans = new Pair<>(targetX, targetY);
         return ans;
     }
 
-    private Pair<Integer, Integer> calibrateScaleAtT1(int beforeMoveX, Quaternion quaternion, Mat K, Mat D) {
-
-        api.saveMatImage(getNavCamAndCalibrateFisheye(K, D), "t1_0beforeMove.png");
+    private Pair<Integer, Integer> calibrateScaleAtT1(Pair<Integer, Integer> beforeMove, Quaternion quaternion, Mat K, Mat D) {
 
         Point relativePoint = new Point(0, 0.2, 0);
         relativeMoveTo2(relativePoint, quaternion, true);
-        sleep(3);
+        sleep(T1_CALIB_SLEEP);
         Pair<Integer, Integer> afterMoveForX = getTarget1Loc(getNavCamAndCalibrateFisheye(K, D));
-        mY = 0.2 / (beforeMoveX - afterMoveForX.first);
-
-        api.saveMatImage(getNavCamAndCalibrateFisheye(K, D), "t1_1afterMoveForX.png");
+        mY = 0.2 / (beforeMove.first - afterMoveForX.first);
 
         relativePoint = new Point(0.2, 0, 0);
         relativeMoveTo2(relativePoint, quaternion, true);
-        sleep(3);
+        sleep(T1_CALIB_SLEEP);
         Pair<Integer, Integer> afterMoveForY = getTarget1Loc(getNavCamAndCalibrateFisheye(K, D));
         mX = 0.2 / (afterMoveForX.second - afterMoveForY.second);
 
-        api.saveMatImage(getNavCamAndCalibrateFisheye(K, D), "t1_2afterMoveForY.png");
-
-        Log.i("afterCalibrateAtT1", "mY: " + mY + "; mX: " + mX);
+        log("afterCalibrateAtT1", "mY: " + mY + "; mX: " + mX);
 
         return afterMoveForY;
     }
 
-    private Pair<Integer, Integer> calibrateScaleAtT2(int beforeMoveX, Quaternion quaternion, Mat K, Mat D) {
+    private Pair<Integer, Integer> calibrateScaleAtT2(Pair<Integer, Integer> beforeMove, Quaternion quaternion, Mat K, Mat D) {
 
-        api.saveMatImage(getNavCamAndCalibrateFisheye(K, D), "t2_0beforeMove.png");
         Point relativePoint = new Point(0, 0, -0.2);
         relativeMoveTo2(relativePoint, quaternion, true);
-        sleep(5);
+        sleep(T2_CALIB_SLEEP);
         Pair<Integer, Integer> afterMoveForX = getTarget2Loc(getNavCamAndCalibrateFisheye(K, D));
-        mZ = (-0.2) / (beforeMoveX - afterMoveForX.first);
-
-        api.saveMatImage(getNavCamAndCalibrateFisheye(K, D), "t2_1afterMoveForX.png");
+        mZ = (-0.2) / (beforeMove.first - afterMoveForX.first);
 
         relativePoint = new Point(-0.2, 0, 0);
         relativeMoveTo2(relativePoint, quaternion, true);
-        sleep(5);
+        sleep(T2_CALIB_SLEEP);
         Pair<Integer, Integer> afterMoveForY = getTarget2Loc(getNavCamAndCalibrateFisheye(K, D));
         mX = (-0.2) / (afterMoveForX.second - afterMoveForY.second);
 
-        api.saveMatImage(getNavCamAndCalibrateFisheye(K, D), "t2_2afterMoveForY.png");
-
-        Log.i("afterCalibrateAtT2", "mX: " + mX + "; mZ: " + mZ);
+        log("afterCalibrateAtT2", "mX: " + mX + "; mZ: " + mZ);
 
         return afterMoveForY;
     }
@@ -444,10 +426,10 @@ public class YourService extends KiboRpcService {
         Point relativePoint = new Point(tY * mX + 0.0285, tX * mY - 0.0994, 0);
         relativeMoveTo2(relativePoint, quaternion, true);
 
-        Mat img = getNavCamAndCalibrateFisheye(K, D);
-        Pair<Integer, Integer> t1 = getTarget1Loc(img);
-        Log.i("t1_afterMoveLoc", "x: " + t1.first + "; y: " + t1.second);
-        api.saveMatImage(img, "t1_afteroffset.png");
+//        Mat img = getNavCamAndCalibrateFisheye(K, D);
+//        Pair<Integer, Integer> t1 = getTarget1Loc(img);
+//        log("t1_afterMoveLoc", "x: " + t1.first + "; y: " + t1.second);
+//        api.saveMatImage(img, "t1_afteroffset.png");
 
         return true;
     }
@@ -458,14 +440,14 @@ public class YourService extends KiboRpcService {
         Point relativePoint = new Point(tY * mX - 0.0285, 0, tX * mZ - 0.0994);
         relativeMoveTo2(relativePoint, quaternion, true);
 
-        Log.i("testDebugSomethingStuff", "ARRIVED AT T2");
+        log("testDebugSomethingStuff", "ARRIVED AT T2");
 
-        Mat img = getNavCamAndCalibrateFisheye(K, D);
-        Pair<Integer, Integer> t2 = getTarget2Loc(img);
-        Log.i("t2_afterMoveLoc", "x: " + t2.first + "; y: " + t2.second);
-        api.saveMatImage(img, "t2_afteroffset.png");
+//        Mat img = getNavCamAndCalibrateFisheye(K, D);
+//        Pair<Integer, Integer> t2 = getTarget2Loc(img);
+//        log("t2_afterMoveLoc", "x: " + t2.first + "; y: " + t2.second);
+//        api.saveMatImage(img, "t2_afteroffset.png");
 
-        Log.i("testDebugSomethingStuff", "SAVED IMAGE AT T2");
+//        log("testDebugSomethingStuff", "SAVED IMAGE AT T2");
 
         return true;
     }
