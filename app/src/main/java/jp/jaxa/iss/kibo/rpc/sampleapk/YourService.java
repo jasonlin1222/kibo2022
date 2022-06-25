@@ -109,7 +109,7 @@ public class YourService extends KiboRpcService {
         Quaternion quaternion2 = new Quaternion(0.5f, -0.5f, -0.5f, 0.5f);
 
         //move to
-        moveTo2(avoid, quaternion2, true);
+        moveTo2(avoid, quaternion, true);
         log("pos", "move to avoid");
         moveTo2(avoid2, quaternion2, true);
         log("pos", "move to avoid2");
@@ -426,6 +426,29 @@ public class YourService extends KiboRpcService {
         Point relativePoint = new Point(tY * mX + 0.0285, tX * mY - 0.0994, 0);
         relativeMoveTo2(relativePoint, quaternion, true);
 
+        int beforeX = targetX, beforeY = targetY;
+
+        for (int i = 0; i < 2; i++) {
+            double nmX, nmY;
+            sleep(T1_CALIB_SLEEP);
+
+            Pair<Integer, Integer> loc = getTarget1Loc(getNavCamAndCalibrateFisheye(K, D));
+
+            nmY = (tX * mY - 0.0994) / (beforeX - loc.first);
+            nmX = (tY * mX + 0.0285) / (beforeY - loc.second);
+
+            mY = (mY + nmY) / 2;
+            mX = (mX + nmX) / 2;
+
+            beforeX = loc.first; beforeY = loc.second;
+
+            tX = loc.first - 640;
+            tY = loc.second - 480;
+
+            relativePoint = new Point(tY * mX + 0.0285, tX * mY - 0.0994, 0);
+            relativeMoveTo2(relativePoint, quaternion, true);
+        }
+
 //        Mat img = getNavCamAndCalibrateFisheye(K, D);
 //        Pair<Integer, Integer> t1 = getTarget1Loc(img);
 //        log("t1_afterMoveLoc", "x: " + t1.first + "; y: " + t1.second);
@@ -440,7 +463,28 @@ public class YourService extends KiboRpcService {
         Point relativePoint = new Point(tY * mX - 0.0285, 0, tX * mZ - 0.0994);
         relativeMoveTo2(relativePoint, quaternion, true);
 
-        log("testDebugSomethingStuff", "ARRIVED AT T2");
+        int beforeX = targetX, beforeY = targetY;
+
+        for (int i = 0; i < 2; i++) {
+            double nmX, nmZ;
+            sleep(T2_CALIB_SLEEP);
+
+            Pair<Integer, Integer> loc = getTarget2Loc(getNavCamAndCalibrateFisheye(K, D));
+
+            nmZ = (tX * mZ - 0.0994) / (beforeX - loc.first);
+            nmX = (tY * mX - 0.0285) / (beforeY - loc.second);
+
+            mZ = (mZ + nmZ) / 2;
+            mX = (mX + nmX) / 2;
+
+            beforeX = loc.first; beforeY = loc.second;
+
+            tX = loc.first - 640;
+            tY = loc.second - 480;
+
+            relativePoint = new Point(tY * mX - 0.0285, 0, tX * mZ - 0.0994);
+            relativeMoveTo2(relativePoint, quaternion, true);
+        }
 
 //        Mat img = getNavCamAndCalibrateFisheye(K, D);
 //        Pair<Integer, Integer> t2 = getTarget2Loc(img);
