@@ -33,8 +33,10 @@ public class YourService extends KiboRpcService {
     private final Scalar silver = new Scalar(192,192,192);
     private final double T1_BASIC_SLEEP = 5;
     private final double T1_CALIB_SLEEP = 5;
+    private final double T1_FINAL_SLEEP = 7;
     private final double T2_BASIC_SLEEP = 5;
     private final double T2_CALIB_SLEEP = 5;
+    private final double T2_FINAL_SLEEP = 5;
 
     private double mX, mY, mZ;
 
@@ -430,7 +432,7 @@ public class YourService extends KiboRpcService {
 
         for (int i = 0; i < 2; i++) {
             double nmX, nmY;
-            sleep(T1_CALIB_SLEEP);
+            sleep(T1_FINAL_SLEEP);
 
             Pair<Integer, Integer> loc = getTarget1Loc(getNavCamAndCalibrateFisheye(K, D));
 
@@ -467,7 +469,7 @@ public class YourService extends KiboRpcService {
 
         for (int i = 0; i < 2; i++) {
             double nmX, nmZ;
-            sleep(T2_CALIB_SLEEP);
+            sleep(T2_FINAL_SLEEP);
 
             Pair<Integer, Integer> loc = getTarget2Loc(getNavCamAndCalibrateFisheye(K, D));
 
