@@ -410,7 +410,7 @@ public class YourService extends KiboRpcService {
         relativeMoveTo2(relativePoint2, quaternion, true);
         sleep(T1_CALIB_SLEEP);
         Pair<Integer, Integer> afterMoveForY2 = getTarget1Loc(getNavCamAndCalibrateFisheye(K, D));
-        mX = (-0.2) / (afterMoveForY.second - afterMoveForY2.second);
+        mmX = (-0.2) / (afterMoveForY.second - afterMoveForY2.second);
 
         log("mX & mmX", "mX:" + mX + " mmX:" + mmX +  " Triangle:" + (mX - mmX));
 
@@ -449,11 +449,11 @@ public class YourService extends KiboRpcService {
         relativeMoveTo2(relativePoint2, quaternion, true);
         sleep(T2_CALIB_SLEEP);
         Pair<Integer, Integer> afterMoveForY2 = getTarget1Loc(getNavCamAndCalibrateFisheye(K, D));
-        mmY = 0.2/(afterMoveForY.second - afterMoveForY2.second);
+        mmX = 0.2/(afterMoveForY.second - afterMoveForY2.second);
 
-        log("mY & mmY", "mY:" + mY + " mmY:" + mmY +  " Triangle:" + (mY - mmY));
+        log("mX & mmX", "mX:" + mX + " mmX:" + mmX +  " Triangle:" + (mX - mmX));
 
-        mY = (mmY + mY)/2;
+        mX = (mmX + mX)/2;
 
         log("afterCalibrateAtT2", "mX: " + mX + "; mZ: " + mZ);
 
