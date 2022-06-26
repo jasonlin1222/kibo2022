@@ -31,12 +31,12 @@ public class YourService extends KiboRpcService {
     private final String LOG_PREFIX = "WillPower_";
     private final Pair<Integer, Integer> nullPII = new Pair<>(-1,-1);
     private final Scalar silver = new Scalar(192,192,192);
-    private final double T1_BASIC_SLEEP = 5;
-    private final double T1_CALIB_SLEEP = 5;
-    private final double T2_BASIC_SLEEP = 5;
-    private final double T2_CALIB_SLEEP = 5;
+    private final double T1_BASIC_SLEEP = 10;
+    private final double T1_CALIB_SLEEP = 10;
+    private final double T2_BASIC_SLEEP = 10;
+    private final double T2_CALIB_SLEEP = 10;
 
-    private double mX, mY, mZ;
+    private double mX, mmY, mY, mZ;
 
     @Override
     protected void runPlan1(){
@@ -389,6 +389,16 @@ public class YourService extends KiboRpcService {
         sleep(T1_CALIB_SLEEP);
         Pair<Integer, Integer> afterMoveForX = getTarget1Loc(getNavCamAndCalibrateFisheye(K, D));
         mY = 0.2 / (beforeMove.first - afterMoveForX.first);
+
+        Point relativePoint2 = new Point(0, -0.2, 0);
+        relativeMoveTo2(relativePoint2, quaternion, true);
+        sleep(T1_CALIB_SLEEP);
+        Pair<Integer, Integer> afterMoveForX2 = getTarget1Loc(getNavCamAndCalibrateFisheye(K, D));
+        mmY = -0.2/(afterMoveForX.first - afterMoveForX2.first);
+
+        log("mY & mmY", "mY:" + mY + " mmY:" + mmY +  " Triangle:" + (mY - mmY));
+
+        mY = (mmY + mY)/2;
 
         relativePoint = new Point(0.2, 0, 0);
         relativeMoveTo2(relativePoint, quaternion, true);
