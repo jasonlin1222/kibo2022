@@ -390,15 +390,27 @@ public class YourService extends KiboRpcService {
         Pair<Integer, Integer> afterMoveForX = getTarget1Loc(getNavCamAndCalibrateFisheye(K, D));
         mY = 0.2 / (beforeMove.first - afterMoveForX.first);
 
+        relativePoint = new Point(0, -0.2, 0);
+        relativeMoveTo2(relativePoint, quaternion, true);
+        sleep(T1_CALIB_SLEEP);
+        Pair<Integer, Integer> afterMoveForX2 = getTarget1Loc(getNavCamAndCalibrateFisheye(K, D));
+        mY = (mY + (-0.2) / (afterMoveForX.first - afterMoveForX2.first)) / 2;
+
         relativePoint = new Point(0.2, 0, 0);
         relativeMoveTo2(relativePoint, quaternion, true);
         sleep(T1_CALIB_SLEEP);
         Pair<Integer, Integer> afterMoveForY = getTarget1Loc(getNavCamAndCalibrateFisheye(K, D));
-        mX = 0.2 / (afterMoveForX.second - afterMoveForY.second);
+        mX = 0.2 / (afterMoveForX2.second - afterMoveForY.second);
+
+        relativePoint = new Point(-0.2, 0, 0);
+        relativeMoveTo2(relativePoint, quaternion, true);
+        sleep(T1_CALIB_SLEEP);
+        Pair<Integer, Integer> afterMoveForY2 = getTarget1Loc(getNavCamAndCalibrateFisheye(K, D));
+        mX = (mX + (-0.2) / (afterMoveForY.second - afterMoveForY2.second)) / 2;
 
         log("afterCalibrateAtT1", "mY: " + mY + "; mX: " + mX);
 
-        return afterMoveForY;
+        return afterMoveForY2;
     }
 
     private Pair<Integer, Integer> calibrateScaleAtT2(Pair<Integer, Integer> beforeMove, Quaternion quaternion, Mat K, Mat D) {
@@ -409,15 +421,27 @@ public class YourService extends KiboRpcService {
         Pair<Integer, Integer> afterMoveForX = getTarget2Loc(getNavCamAndCalibrateFisheye(K, D));
         mZ = (-0.2) / (beforeMove.first - afterMoveForX.first);
 
+        relativePoint = new Point(0, 0, 0.2);
+        relativeMoveTo2(relativePoint, quaternion, true);
+        sleep(T2_CALIB_SLEEP);
+        Pair<Integer, Integer> afterMoveForX2 = getTarget2Loc(getNavCamAndCalibrateFisheye(K, D));
+        mZ = (mZ + (0.2) / (afterMoveForX.first - afterMoveForX2.first)) / 2;
+
         relativePoint = new Point(-0.2, 0, 0);
         relativeMoveTo2(relativePoint, quaternion, true);
         sleep(T2_CALIB_SLEEP);
         Pair<Integer, Integer> afterMoveForY = getTarget2Loc(getNavCamAndCalibrateFisheye(K, D));
-        mX = (-0.2) / (afterMoveForX.second - afterMoveForY.second);
+        mX = (-0.2) / (afterMoveForX2.second - afterMoveForY.second);
+
+        relativePoint = new Point(0.2, 0, 0);
+        relativeMoveTo2(relativePoint, quaternion, true);
+        sleep(T2_CALIB_SLEEP);
+        Pair<Integer, Integer> afterMoveForY2 = getTarget2Loc(getNavCamAndCalibrateFisheye(K, D));
+        mX = (mX + (0.2) / (afterMoveForY.second - afterMoveForY2.second)) / 2;
 
         log("afterCalibrateAtT2", "mX: " + mX + "; mZ: " + mZ);
 
-        return afterMoveForY;
+        return afterMoveForY2;
     }
 
     private boolean moveToPointOnImageForT1(int targetX, int targetY, Quaternion quaternion, Mat K, Mat D) {
