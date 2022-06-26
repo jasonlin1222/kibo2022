@@ -394,7 +394,7 @@ public class YourService extends KiboRpcService {
         relativeMoveTo2(relativePoint2, quaternion, true);
         sleep(T1_CALIB_SLEEP);
         Pair<Integer, Integer> afterMoveForX2 = getTarget1Loc(getNavCamAndCalibrateFisheye(K, D));
-        mmY = -0.2/(afterMoveForX.first - afterMoveForX2.first);
+        mmY = (-0.2)/(afterMoveForX.first - afterMoveForX2.first);
 
         log("mY & mmY", "mY:" + mY + " mmY:" + mmY +  " Triangle:" + (mY - mmY));
 
