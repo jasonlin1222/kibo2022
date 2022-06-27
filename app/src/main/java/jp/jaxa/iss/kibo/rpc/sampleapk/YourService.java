@@ -38,7 +38,10 @@ public class YourService extends KiboRpcService {
     private final double T2_BASIC_SLEEP = 5;
     private final double T2_CALIB_SLEEP = 5;
     private final double T2_FINAL_SLEEP = 5;
-    private final double FIXED_M = 0.000976652;
+    private final double FIXED_MY = 0.00096865;
+    private final double FIXED_MX = 0.00101449;
+    private final double FIXED_MX2 = -0.000968118;
+    private final double FIXED_MZ = 0.000955345;
 
     private double mX, mY, mZ;
 
@@ -402,11 +405,12 @@ public class YourService extends KiboRpcService {
 //
 //        log("afterCalibrateAtT1", "mY: " + mY + "; mX: " + mX);
 
-        // 0.0013 ~ 0.0006 -> 0.000975
 
 //        return afterMoveForY;
 
-        mY = mX = FIXED_M;
+        mY = FIXED_MY;
+        mX = FIXED_MX;
+
         return beforeMove;
     }
 
@@ -440,8 +444,9 @@ public class YourService extends KiboRpcService {
 //
 //        return afterMoveForY2;
 
-        mX = -1 * FIXED_M;
-        mZ = FIXED_M;
+        mX = FIXED_MX2;
+        mZ = FIXED_MZ;
+
         return beforeMove;
     }
 
@@ -466,8 +471,19 @@ public class YourService extends KiboRpcService {
 
             log("moveToPointOnImageForT1", "nmY: " + nmY + "; nmX: " + nmX);
 
-            mY = (mY + nmY) / 2;
-            mX = (mX + nmX) / 2;
+            nmY = (mY + nmY) / 2;
+            nmX = (mX + nmX) / 2;
+
+            try {
+                if (0.0007 < mY && mY < 0.0012) {
+                    mY = nmY;
+                }
+            } catch (Exception e) {}
+            try {
+                if (0.0007 < mX && mX < 0.0012) {
+                    mX = nmX;
+                }
+            } catch (Exception e) {}
 
             log("moveToPointOnImageForT1", "mY: " + mY + "; mX: " + mX);
 
@@ -509,8 +525,19 @@ public class YourService extends KiboRpcService {
 
             log("moveToPointOnImageForT2", "nmZ: " + nmZ + "; nmX: " + nmX);
 
-            mZ = (mZ + nmZ) / 2;
-            mX = (mX + nmX) / 2;
+            nmZ = (mZ + nmZ) / 2;
+            nmX = (mX + nmX) / 2;
+
+            try {
+                if (0.0007 < nmZ && nmZ < 0.0012) {
+                    mZ = nmZ;
+                }
+            } catch (Exception e) {}
+            try {
+                if (-0.0011 < mX && mX < -0.0008) {
+                    mX = nmX;
+                }
+            } catch (Exception e) {}
 
             log("moveToPointOnImageForT2", "mZ: " + mZ + "; mX: " + mX);
 
