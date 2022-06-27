@@ -459,6 +459,8 @@ public class YourService extends KiboRpcService {
 
             Pair<Integer, Integer> loc = getTarget1Loc(getNavCamAndCalibrateFisheye(K, D));
 
+            log("moveToPointOnImageForT1", "loc: " + loc.first + ", " + loc.second);
+
             nmY = (tX * mY - 0.0994) / (beforeX - loc.first);
             nmX = (tY * mX + 0.0285) / (beforeY - loc.second);
 
@@ -499,6 +501,8 @@ public class YourService extends KiboRpcService {
             sleep(T2_FINAL_SLEEP);
 
             Pair<Integer, Integer> loc = getTarget2Loc(getNavCamAndCalibrateFisheye(K, D));
+
+            log("moveToPointOnImageForT2", "loc: " + loc.first + ", " + loc.second);
 
             nmZ = (tX * mZ - 0.0994) / (beforeX - loc.first);
             nmX = -1 * Math.abs((tY * mX - 0.0285) / (beforeY - loc.second));
