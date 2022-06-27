@@ -475,12 +475,12 @@ public class YourService extends KiboRpcService {
             nmX = (mX + nmX) / 2;
 
             try {
-                if (0.0007 < mY && mY < 0.0012) {
+                if (0.0007 < nmY && nmY < 0.0012) {
                     mY = nmY;
                 }
             } catch (Exception e) {}
             try {
-                if (0.0007 < mX && mX < 0.0012) {
+                if (0.0007 < nmX && nmX < 0.0012) {
                     mX = nmX;
                 }
             } catch (Exception e) {}
@@ -534,7 +534,7 @@ public class YourService extends KiboRpcService {
                 }
             } catch (Exception e) {}
             try {
-                if (-0.0011 < mX && mX < -0.0008) {
+                if (-0.0011 < nmX && nmX < -0.0008) {
                     mX = nmX;
                 }
             } catch (Exception e) {}
