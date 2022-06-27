@@ -21,6 +21,7 @@ import java.util.List;
 
 import static com.google.common.primitives.Ints.max;
 import static com.google.common.primitives.Ints.min;
+import static java.lang.Math.abs;
 import static org.opencv.core.CvType.CV_32F;
 
 /**
@@ -37,6 +38,7 @@ public class YourService extends KiboRpcService {
     private final double T2_BASIC_SLEEP = 5;
     private final double T2_CALIB_SLEEP = 5;
     private final double T2_FINAL_SLEEP = 5;
+    private final double FIXED_M = 0.000976652;
 
     private double mX, mY, mZ;
 
@@ -386,40 +388,61 @@ public class YourService extends KiboRpcService {
 
     private Pair<Integer, Integer> calibrateScaleAtT1(Pair<Integer, Integer> beforeMove, Quaternion quaternion, Mat K, Mat D) {
 
-        Point relativePoint = new Point(0, 0.2, 0);
-        relativeMoveTo2(relativePoint, quaternion, true);
-        sleep(T1_CALIB_SLEEP);
-        Pair<Integer, Integer> afterMoveForX = getTarget1Loc(getNavCamAndCalibrateFisheye(K, D));
-        mY = 0.2 / (beforeMove.first - afterMoveForX.first);
+//        Point relativePoint = new Point(0, 0.2, 0);
+//        relativeMoveTo2(relativePoint, quaternion, true);
+//        sleep(T1_CALIB_SLEEP);
+//        Pair<Integer, Integer> afterMoveForX = getTarget1Loc(getNavCamAndCalibrateFisheye(K, D));
+//        mY = 0.2 / (beforeMove.first - afterMoveForX.first);
+//
+//        relativePoint = new Point(0.2, 0, 0);
+//        relativeMoveTo2(relativePoint, quaternion, true);
+//        sleep(T1_CALIB_SLEEP);
+//        Pair<Integer, Integer> afterMoveForY = getTarget1Loc(getNavCamAndCalibrateFisheye(K, D));
+//        mX = 0.2 / (afterMoveForX.second - afterMoveForY.second);
+//
+//        log("afterCalibrateAtT1", "mY: " + mY + "; mX: " + mX);
 
-        relativePoint = new Point(0.2, 0, 0);
-        relativeMoveTo2(relativePoint, quaternion, true);
-        sleep(T1_CALIB_SLEEP);
-        Pair<Integer, Integer> afterMoveForY = getTarget1Loc(getNavCamAndCalibrateFisheye(K, D));
-        mX = 0.2 / (afterMoveForX.second - afterMoveForY.second);
+        // 0.0013 ~ 0.0006 -> 0.000975
 
-        log("afterCalibrateAtT1", "mY: " + mY + "; mX: " + mX);
+//        return afterMoveForY;
 
-        return afterMoveForY;
+        mY = mX = FIXED_M;
+        return beforeMove;
     }
 
     private Pair<Integer, Integer> calibrateScaleAtT2(Pair<Integer, Integer> beforeMove, Quaternion quaternion, Mat K, Mat D) {
 
-        Point relativePoint = new Point(0, 0, -0.2);
-        relativeMoveTo2(relativePoint, quaternion, true);
-        sleep(T2_CALIB_SLEEP);
-        Pair<Integer, Integer> afterMoveForX = getTarget2Loc(getNavCamAndCalibrateFisheye(K, D));
-        mZ = (-0.2) / (beforeMove.first - afterMoveForX.first);
+//        Point relativePoint = new Point(0, 0, -0.2);
+//        relativeMoveTo2(relativePoint, quaternion, true);
+//        sleep(T2_CALIB_SLEEP);
+//        Pair<Integer, Integer> afterMoveForX = getTarget2Loc(getNavCamAndCalibrateFisheye(K, D));
+//        mZ = (-0.2) / (beforeMove.first - afterMoveForX.first);
+//
+//        relativePoint = new Point(0, 0, 0.2);
+//        relativeMoveTo2(relativePoint, quaternion, true);
+//        sleep(T2_CALIB_SLEEP);
+//        Pair<Integer, Integer> afterMoveForX2 = getTarget2Loc(getNavCamAndCalibrateFisheye(K, D));
+//        mZ = (mZ + (0.2) / (afterMoveForX.first - afterMoveForX2.first)) / 2;
+//
+//        relativePoint = new Point(-0.2, 0, 0);
+//        relativeMoveTo2(relativePoint, quaternion, true);
+//        sleep(T2_CALIB_SLEEP);
+//        Pair<Integer, Integer> afterMoveForY = getTarget2Loc(getNavCamAndCalibrateFisheye(K, D));
+//        mX = (-0.2) / (afterMoveForX2.second - afterMoveForY.second);
+//
+//        relativePoint = new Point(0.2, 0, 0);
+//        relativeMoveTo2(relativePoint, quaternion, true);
+//        sleep(T2_CALIB_SLEEP);
+//        Pair<Integer, Integer> afterMoveForY2 = getTarget2Loc(getNavCamAndCalibrateFisheye(K, D));
+//        mX = (mX + (0.2) / (afterMoveForY.second - afterMoveForY2.second)) / 2;
+//
+//        log("afterCalibrateAtT2", "mX: " + mX + "; mZ: " + mZ);
+//
+//        return afterMoveForY2;
 
-        relativePoint = new Point(-0.2, 0, 0);
-        relativeMoveTo2(relativePoint, quaternion, true);
-        sleep(T2_CALIB_SLEEP);
-        Pair<Integer, Integer> afterMoveForY = getTarget2Loc(getNavCamAndCalibrateFisheye(K, D));
-        mX = (-0.2) / (afterMoveForX.second - afterMoveForY.second);
-
-        log("afterCalibrateAtT2", "mX: " + mX + "; mZ: " + mZ);
-
-        return afterMoveForY;
+        mX = -1 * FIXED_M;
+        mZ = FIXED_M;
+        return beforeMove;
     }
 
     private boolean moveToPointOnImageForT1(int targetX, int targetY, Quaternion quaternion, Mat K, Mat D) {
@@ -430,7 +453,7 @@ public class YourService extends KiboRpcService {
 
         int beforeX = targetX, beforeY = targetY;
 
-        for (int i = 0; i < 2; i++) {
+        for (int i = 0; i < 1; i++) {
             double nmX, nmY;
             sleep(T1_FINAL_SLEEP);
 
@@ -439,8 +462,12 @@ public class YourService extends KiboRpcService {
             nmY = (tX * mY - 0.0994) / (beforeX - loc.first);
             nmX = (tY * mX + 0.0285) / (beforeY - loc.second);
 
+            log("moveToPointOnImageForT1", "nmY: " + nmY + "; nmX: " + nmX);
+
             mY = (mY + nmY) / 2;
             mX = (mX + nmX) / 2;
+
+            log("moveToPointOnImageForT1", "mY: " + mY + "; mX: " + mX);
 
             beforeX = loc.first; beforeY = loc.second;
 
@@ -474,10 +501,14 @@ public class YourService extends KiboRpcService {
             Pair<Integer, Integer> loc = getTarget2Loc(getNavCamAndCalibrateFisheye(K, D));
 
             nmZ = (tX * mZ - 0.0994) / (beforeX - loc.first);
-            nmX = (tY * mX - 0.0285) / (beforeY - loc.second);
+            nmX = -1 * Math.abs((tY * mX - 0.0285) / (beforeY - loc.second));
+
+            log("moveToPointOnImageForT2", "nmZ: " + nmZ + "; nmX: " + nmX);
 
             mZ = (mZ + nmZ) / 2;
             mX = (mX + nmX) / 2;
+
+            log("moveToPointOnImageForT2", "mZ: " + mZ + "; mX: " + mX);
 
             beforeX = loc.first; beforeY = loc.second;
 
